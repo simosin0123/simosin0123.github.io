@@ -225,6 +225,7 @@ let data = {}; // 月次データ
 let currentMonth = ""; // '2024-06'など
 let currentUser = null;
 let userUid = null;
+let unsubscribe = null; // ★★★ この一行を追加 ★★★
 const LOCAL_MONTH_KEY = "lastMonthKey";
 const LOCAL_STARTDAY_KEY = "budgetAppStartDay";
 
@@ -264,18 +265,6 @@ async function syncToFirestore() {
         saveLocalBackup();
     }
 }
-async function syncFromFirestore() {
-    if (!userUid) return;
-    try {
-        const snap = await db.collection("budgets").doc(userUid).get();
-        if (snap.exists) data = snap.data() || {};
-        else data = {};
-        updateDisplay();
-    } catch (e) {
-        loadLocalBackup();
-        updateDisplay();
-    }
-}
 function saveLocalBackup() {
     localStorage.setItem("backup_"+userUid, JSON.stringify(data));
 }
@@ -311,22 +300,61 @@ async function logout() {
     await syncToFirestore();
     await auth.signOut();
 }
-auth.onAuthStateChanged(async user => {
+auth.onAuthStateChanged(user => {
+    // 既存のリスナーがあれば解除する（ユーザー切り替え時に必須）
+    if (unsubscribe) {
+        unsubscribe();
+        unsubscribe = null;
+    }
+
     if (user) {
+        // --- ログイン時の処理 ---
         currentUser = user;
         userUid = user.uid;
         document.getElementById("currentUser").textContent = user.email;
-        await syncFromFirestore();
-        currentMonth = localStorage.getItem(LOCAL_MONTH_KEY) || getMonthKey(new Date());
-        updateDisplay();
+
+        // データベースの変更をリアルタイムに監視開始
+        unsubscribe = db.collection("budgets").doc(userUid).onSnapshot(doc => {
+            console.log("Firestoreのデータがリアルタイムで更新されました。");
+            if (doc.exists) {
+                data = doc.data() || {};
+            } else {
+                // 初回ログインなどで、まだデータが存在しない場合
+                console.log("ドキュメントが存在しないため、初期化します。");
+                data = {};
+                initializeMonth(getMonthKey(new Date()));
+            }
+            
+            // 画面全体を最新データで更新
+            currentMonth = localStorage.getItem(LOCAL_MONTH_KEY) || getMonthKey(new Date());
+            updateDisplay();
+            
+            // 現在表示中のタブの内容も更新
+            const activeTabButton = document.querySelector('.tab-btn.active');
+            if (activeTabButton) {
+                const activeTabText = activeTabButton.textContent;
+                if (activeTabText.includes('収入')) renderIncomeList();
+                if (activeTabText.includes('予算')) renderBudgetList();
+                if (activeTabText.includes('支出')) { renderExpenseCategoryOptions(); updateExpenseList(); }
+                if (activeTabText.includes('週次')) updateWeeklyReport();
+            }
+
+        }, error => {
+            console.error("リアルタイムリスナーでエラーが発生: ", error);
+            alert("データの同期に失敗しました。ローカルのバックアップを読み込みます。");
+            loadLocalBackup();
+            updateDisplay();
+        });
+
         showMainApp();
-        await flushOfflineQueue();
+
     } else {
+        // --- ログアウト時の処理 ---
         currentUser = userUid = null;
+        data = {};
         showLogin();
     }
 });
-
 // ========== 画面遷移 ==========
 function showLogin() {
     document.getElementById('loginScreen').style.display = 'block';
@@ -550,21 +578,18 @@ async function addExpense(event) {
     });
 
     try {
-        // 2. データベースへの保存を待つ
+        // データベースへの保存を待つだけ。画面更新はリスナーが自動で検知します。
         await syncToFirestore();
 
-        // 3. 成功したことをボタンの表示でフィードバック
-        btn.classList.add('success'); // ボタンを一時的に緑色にする
+        // 成功したことをボタンの表示でフィードバック
+        btn.classList.add('success');
         btn.textContent = '保存完了 ✅';
 
-        // UIを更新
+        // UIの入力欄をリセット
         document.getElementById('expenseDate').value = new Date().toISOString().slice(0, 10);
         document.getElementById('expenseAmount').value = '';
         document.getElementById('expenseMemo').value = '';
-        renderExpenseCategoryOptions();
-        updateExpenseList();
-        updateDisplay();
-
+    
     } catch (e) {
         // 4. 失敗した場合もフィードバック
         btn.classList.add('danger'); // ボタンを一時的に赤色にする
