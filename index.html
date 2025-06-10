@@ -392,8 +392,6 @@
     function updateHeader() {
         const range = getMonthRange(currentMonthKey);
         document.getElementById('currentMonth').textContent = `${range.start.getFullYear()}年 ${range.start.getMonth() + 1}月`;
-        document.getElementById('monthStartDayHeader').textContent = range.start.getDate();
-        document.getElementById('monthEndDayHeader').textContent = range.end.getDate();
     }
     
     function showSyncStatus(type, message) {
