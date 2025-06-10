@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>予算管理システム v3.3 </title>
+    <title>予算管理システム v3.4</title>
     
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -84,7 +84,7 @@
 </head>
 <body>
     <header>
-        <h1>💰 予算管理システム v3.3</h1>
+        <h1>💰 予算管理システム v3.4</h1>
         <p>あなたの予算をスマートに管理しましょう</p>
     </header>
 
@@ -140,9 +140,9 @@
             <div id="incomeTab" class="content"><h2>収入設定</h2><div id="incomeItems" class="grid"></div><button onclick="addIncomeItem()">+ 収入項目を追加</button></div>
             <div id="budgetTab" class="content">
                 <h2>予算設定</h2>
-                <h3>固定費</h3><div id="fixedCostItems" class="grid"></div><button onclick="addBudgetItem('fixed')">+ 固定費を追加</button>
+                <h3>貯蓄・投資</h3><div id="savingsItems" class="grid"></div><button onclick="addBudgetItem('savings')">+ 貯蓄項目を追加</button>
+                <h3 style="margin-top: 20px;">固定費</h3><div id="fixedCostItems" class="grid"></div><button onclick="addBudgetItem('fixed')">+ 固定費を追加</button>
                 <h3 style="margin-top: 20px;">変動費</h3><div id="variableCostItems" class="grid"></div><button onclick="addBudgetItem('variable')">+ 変動費を追加</button>
-                <h3 style="margin-top: 20px;">貯蓄・投資</h3><div id="savingsItems" class="grid"></div><button onclick="addBudgetItem('savings')">+ 貯蓄項目を追加</button>
             </div>
             <div id="expenseTab" class="content"><h2>支出入力</h2><div class="card"><div class="input-group"><label>日付</label><div class="calendar-input"><input type="text" id="expenseDate" readonly placeholder="クリックして日付を選択" onclick="toggleCalendar()"><div id="calendarPopup" class="calendar-popup"><div class="calendar-header"><button onclick="changeCalendarMonth(-1)">←</button><span id="calendarMonthLabel"></span><button onclick="changeCalendarMonth(1)">→</button></div><div class="calendar-grid" id="calendarWeekdays"></div><div class="calendar-grid" id="calendarGrid"></div></div></div></div><div class="input-group"><label>カテゴリー</label><select id="expenseCategory"></select></div><div class="input-group"><label>金額</label><input type="number" id="expenseAmount" placeholder="0"></div><div class="input-group"><label>メモ</label><input type="text" id="expenseMemo"></div><button onclick="addExpense(event)">支出を追加</button></div><h3 style="margin-top: 30px;">今月の支出一覧</h3><div id="expenseList" class="expense-list"></div></div>
             <div id="analysisTab" class="content"><h2>📈 分析</h2><div class="card"><h3>先月との支出比較</h3><p>カテゴリーごとの支出額を先月のデータと比較します。</p><div style="margin-top: 20px; height: 400px; position: relative;"><canvas id="comparisonChart"></canvas></div></div><div class="card" style="margin-top:20px;"><h3>データのエクスポート</h3><button onclick="exportCSV()">📊 CSVエクスポート</button></div></div>
@@ -153,7 +153,7 @@
 
 <script>
     // ▼▼▼ あなたのFirebase設定をここに！ ▼▼▼
-    const firebaseConfig = {
+   const firebaseConfig = {
   apiKey: "AIzaSyDFnNNb5wTESyC6zdWgG30oR1LVLr7Vc1o",
   authDomain: "josan-44288.firebaseapp.com",
   databaseURL: "https://josan-44288-default-rtdb.firebaseio.com",
@@ -164,7 +164,9 @@
   measurementId: "G-KTJRYVCV87"
 };
 
+    // ==================================
     // 1. Firebaseと基本設定
+    // ==================================
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
@@ -176,7 +178,9 @@
     const LOCAL_STARTDAY_KEY = "budgetAppStartDay";
     const LOCAL_MONTH_KEY = "budgetAppLastMonth";
 
+    // ==================================
     // 2. 認証関連
+    // ==================================
     auth.onAuthStateChanged(user => {
         if (unsubscribe) unsubscribe();
         if (user) {
@@ -220,15 +224,21 @@
         document.getElementById('registerScreen').style.display = 'block';
     }
 
+    // ==================================
     // 3. データ操作と同期
+    // ==================================
     function initializeMonth(key) {
         if (!data[key]) {
             data[key] = {
-                income: [{ name: "アルバイト", amount: 100000 }],
+                income: [{ name: "アルバイト", amount: 120000 }],
                 budget: {
+                    savings: [
+                        { name: "積立NISA", amount: 33000 },
+                        { name: "海外旅行", amount: 10000 },
+                        { name: "カメラ積立", amount: 5000 }
+                    ],
                     fixed: [{ name: "家賃", amount: 50000 }, { name: "通信費", amount: 5000 }],
-                    variable: [{ name: "食費", amount: 30000 }, { name: "交際費", amount: 10000 }],
-                    savings: [{ name: "積立NISA", amount: 33000 }]
+                    variable: [{ name: "食費", amount: 30000 }, { name: "交際費", amount: 15000 }]
                 },
                 expenses: []
             };
@@ -247,7 +257,9 @@
         }
     }
 
+    // ==================================
     // 4. UI更新と表示ロジック
+    // ==================================
     function showTab(tabId) {
         document.querySelectorAll('.content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
@@ -305,7 +317,7 @@
         const today = new Date();
         const thisBudgetMonthKey = getMonthKey(today);
         if(currentMonthKey !== thisBudgetMonthKey){
-            weeklySummaryBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#9CA3AF;">現在の月ではないため、週次比較は表示されません。</td></tr>`;
+            weeklySummaryBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#9CA3AF;">現在の月のデータではないため、週次比較は表示されません。</td></tr>`;
             return;
         }
         const thisWeekNumber = getWeekNumber(today);
@@ -360,11 +372,11 @@
         });
     }
     function renderBudgetList() {
-        ['fixed', 'variable', 'savings'].forEach(type => {
+        ['savings', 'fixed', 'variable'].forEach(type => {
             const containerId = type === 'fixed' ? 'fixedCostItems' : type === 'variable' ? 'variableCostItems' : 'savingsItems';
             const container = document.getElementById(containerId);
             container.innerHTML = '';
-            if (data[currentMonthKey].budget[type]) {
+            if (data[currentMonthKey] && data[currentMonthKey].budget[type]) {
                 data[currentMonthKey].budget[type].forEach((item, index) => {
                     container.innerHTML += `<div class="editable-item card"><input type="text" value="${item.name}" onchange="updateBudgetItem('${type}', ${index}, 'name', this.value)"><input type="number" value="${item.amount}" onchange="updateBudgetItem('${type}', ${index}, 'amount', this.value)"><button class="delete-btn" onclick="deleteBudgetItem('${type}', ${index})">削除</button></div>`;
                 });
@@ -409,6 +421,9 @@
         syncToFirestore();
     }
     function addBudgetItem(type) {
+        if (!data[currentMonthKey].budget[type]) {
+            data[currentMonthKey].budget[type] = [];
+        }
         data[currentMonthKey].budget[type].push({ name: '新規項目', amount: 0 });
         syncToFirestore();
     }
