@@ -282,7 +282,6 @@ function loadLocalBackup() {
     let s = localStorage.getItem("backup_"+userUid);
     if (s) data = JSON.parse(s);
 }
-async function flushOfflineQueue() {}
 
 // ========== 認証 ==========
 async function register() {
@@ -489,24 +488,53 @@ function renderExpenseCategoryOptions() {
     let html = opts.map(cat => `<option value="${cat}">${cat}</option>`).join('');
     document.getElementById('expenseCategory').innerHTML = html;
 }
-function addExpense() {
-    let d = document.getElementById('expenseDate').value;
-    let cat = document.getElementById('expenseCategory').value;
-    let amt = parseFloat(document.getElementById('expenseAmount').value) || 0;
-    let memo = document.getElementById('expenseMemo').value;
-    if (!d || !cat || !amt) return alert('日付・カテゴリー・金額は必須');
-    let date = new Date(d + 'T12:00:00');
-    let monthKey = getMonthKey(date);
-    initializeMonth(monthKey);
-    data[monthKey].expenses.push({ date: date.toISOString(), category: cat, amount: amt, memo, week: getWeekNumber(date, monthKey) });
-    syncToFirestore();
-    document.getElementById('expenseDate').value = '';
-    document.getElementById('expenseAmount').value = '';
-    document.getElementById('expenseMemo').value = '';
-    renderExpenseCategoryOptions();
-    updateExpenseList();
-    updateDisplay();
-    alert('支出を追加しました');
+// 旧版を丸ごと消して、以下を貼り付けてください
+async function addExpense() {
+  const btn = document.querySelector('#expenseTab button');
+  btn.disabled = true;  // 連打防止
+
+  const d   = document.getElementById('expenseDate').value;
+  const cat = document.getElementById('expenseCategory').value;
+  const amt = parseFloat(document.getElementById('expenseAmount').value) || 0;
+  const memo= document.getElementById('expenseMemo').value;
+  if (!d || !cat || !amt) {
+    alert('日付・カテゴリー・金額は必須');
+    btn.disabled = false;
+    return;
+  }
+
+  // UTC深夜0時で日付固定
+  const [yyyy, mm, dd] = d.split('-').map(Number);
+  const utcDate = new Date(Date.UTC(yyyy, mm - 1, dd, 0, 0, 0));
+
+  const monthKey = getMonthKey(utcDate);
+  initializeMonth(monthKey);
+
+  data[monthKey].expenses.push({
+    date: utcDate.toISOString(),
+    category: cat,
+    amount: amt,
+    memo,
+    week: getWeekNumber(utcDate, monthKey)
+  });
+
+  try {
+    // Firestore への書き込み完了を待つ
+    await syncToFirestore();
+    alert('支出を保存しました');
+  } catch (e) {
+    alert('保存中にエラーが発生しました: ' + e.message);
+  }
+
+  // UI更新
+  document.getElementById('expenseDate').value   = '';
+  document.getElementById('expenseAmount').value = '';
+  document.getElementById('expenseMemo').value   = '';
+  renderExpenseCategoryOptions();
+  updateExpenseList();
+  updateDisplay();
+
+  btn.disabled = false;
 }
 function updateExpenseList() {
     initializeMonth(currentMonth);
