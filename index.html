@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>予算管理システム v3.1</title>
+    <title>予算管理システム v3.2.1</title>
     
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -17,6 +17,7 @@
             --background-dark: #111827; --text-light: #111827; --text-dark: #F3F4F6;
             --surface-light: #FFFFFF; --surface-dark: #1F2937; --border-light: #E5E7EB;
             --border-dark: #4B5563; --danger-background: #FEE2E2; --danger-fill: #EF4444;
+            --success-fill: #10B981;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: var(--background-light); color: var(--text-light); line-height: 1.6; font-size: 16px; transition: background-color 0.3s, color 0.3s; }
@@ -48,6 +49,8 @@
         .progress-fill { height: 100%; background: linear-gradient(to right, #4F46E5, #7C3AED); transition: width 0.5s ease-in-out; }
         .progress-fill.over-budget { background: var(--danger-fill); }
         .progress-text { font-size: 12px; font-weight: 600; color: #6B7280; min-width: 45px; text-align: right; }
+        .comparison-increase { color: var(--danger-color); font-weight: bold; }
+        .comparison-decrease { color: var(--success-color); font-weight: bold; }
         .calendar-input { position: relative; }
         .calendar-popup { position: absolute; top: 100%; left: 0; background: var(--surface-light); border: 1px solid var(--border-light); border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 15px; z-index: 1000; display: none; width: 320px; }
         .calendar-popup.show { display: block; }
@@ -60,6 +63,22 @@
         .sync-status.success { background: var(--success-color); }
         .sync-status.error { background: var(--danger-color); }
         .sync-status.syncing { background: var(--secondary-color); }
+        
+        @media (max-width: 768px) {
+            .tabs {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none; /* Firefox */
+            }
+            .tabs::-webkit-scrollbar {
+                display: none; /* Chrome, Safari */
+            }
+            .tab {
+                flex: 0 0 auto;
+                padding: 15px 20px;
+            }
+        }
+
         @media (prefers-color-scheme: dark) {
             body { background-color: var(--background-dark); color: var(--text-dark); }
             h2, h3, #currentMonth { color: var(--text-dark); }
@@ -69,12 +88,13 @@
             .tab:not(.active) { background: var(--surface-dark); color: #9CA3AF; }
             .summary-table th, .summary-table td { border-color: var(--border-dark); }
             .progress-bar { background-color: var(--border-dark); }
+            .progress-text { color: #9CA3AF; }
         }
     </style>
 </head>
 <body>
     <header>
-        <h1>💰 予算管理システム v3.1</h1>
+        <h1>💰 予算管理システム v3.2.1</h1>
         <p>あなたの予算をスマートに管理しましょう</p>
     </header>
 
@@ -124,8 +144,8 @@
                 <div class="grid"><div class="card"><h3>収入</h3><p>¥<span id="totalIncome">0</span></p></div><div class="card"><h3>予算合計</h3><p>¥<span id="totalBudget">0</span></p></div><div class="card"><h3>支出合計</h3><p>¥<span id="totalExpense">0</span></p></div><div class="card" id="remainingCard"><h3>残額</h3><p>¥<span id="remainingBudget">0</span></p></div></div>
                 <h3>カテゴリー別進捗</h3>
                 <table class="summary-table"><thead><tr><th>カテゴリー</th><th style="width: 40%;">進捗</th><th>支出 / 予算</th><th>残額</th></tr></thead><tbody id="categorySummary"></tbody></table>
-                <h3>週ごとの支出</h3>
-                <table class="summary-table"><thead><tr><th>週</th><th>期間</th><th>合計支出</th></tr></thead><tbody id="weeklySummary"></tbody></table>
+                <h3>今週の支出（カテゴリー別）</h3>
+                <table class="summary-table"><thead><tr><th>カテゴリー</th><th>今週の支出</th><th>先週との比較</th></tr></thead><tbody id="weeklyCategorySummary"></tbody></table>
             </div>
             <div id="incomeTab" class="content"><h2>収入設定</h2><div id="incomeItems" class="grid"></div><button onclick="addIncomeItem()">+ 収入項目を追加</button></div>
             <div id="budgetTab" class="content"><h2>予算設定</h2><h3>固定費</h3><div id="fixedCostItems" class="grid"></div><button onclick="addBudgetItem('fixed')">+ 固定費項目を追加</button><h3 style="margin-top: 20px;">変動費</h3><div id="variableCostItems" class="grid"></div><button onclick="addBudgetItem('variable')">+ 変動費項目を追加</button></div>
@@ -138,7 +158,7 @@
 
 <script>
     // ▼▼▼ あなたのFirebase設定をここに！ ▼▼▼
-    const firebaseConfig = {
+   const firebaseConfig = {
   apiKey: "AIzaSyDFnNNb5wTESyC6zdWgG30oR1LVLr7Vc1o",
   authDomain: "josan-44288.firebaseapp.com",
   databaseURL: "https://josan-44288-default-rtdb.firebaseio.com",
@@ -261,7 +281,7 @@
         renderExpenseCategoryOptions();
         updateExpenseList();
         updateSettingsDisplay();
-        updateWeeklySummary();
+        updateWeeklyCategorySummary();
         
         if (document.getElementById('analysisTab').classList.contains('active')) {
              renderComparisonChart();
@@ -274,13 +294,12 @@
         const totalBudget = allBudgets.reduce((s, i) => s + i.amount, 0);
         const totalExpense = monthData.expenses.reduce((s, i) => s + i.amount, 0);
         const remainingBudget = totalIncome - totalExpense;
-
         document.getElementById('totalIncome').textContent = totalIncome.toLocaleString();
         document.getElementById('totalBudget').textContent = totalBudget.toLocaleString();
         document.getElementById('totalExpense').textContent = totalExpense.toLocaleString();
         document.getElementById('remainingBudget').textContent = remainingBudget.toLocaleString();
         document.getElementById('remainingCard').classList.toggle('negative', remainingBudget < 0);
-
+        
         const categorySummaryBody = document.getElementById('categorySummary');
         categorySummaryBody.innerHTML = '';
         allBudgets.forEach(cat => {
@@ -290,28 +309,60 @@
             categorySummaryBody.innerHTML += `<tr><td><strong>${cat.name}</strong></td><td><div class="progress-bar-container"><div class="progress-bar"><div class="progress-fill ${progress > 100 ? 'over-budget' : ''}" style="width: ${Math.min(progress, 100)}%;"></div></div><span class="progress-text">${progress.toFixed(1)}%</span></div></td><td>¥${catExpense.toLocaleString()} / ¥${cat.amount.toLocaleString()}</td><td>¥${catRemaining.toLocaleString()}</td></tr>`;
         });
     }
-    function updateWeeklySummary() {
-        const weeklySummaryBody = document.getElementById('weeklySummary');
+    function updateWeeklyCategorySummary() {
+        const weeklySummaryBody = document.getElementById('weeklyCategorySummary');
         weeklySummaryBody.innerHTML = '';
-        const monthRange = getMonthRange(currentMonthKey);
-        const monthStartDate = monthRange.start;
-        const weeklyTotals = {};
-
-        data[currentMonthKey].expenses.forEach(expense => {
-            const weekNum = getWeekNumber(new Date(expense.date));
-            weeklyTotals[weekNum] = (weeklyTotals[weekNum] || 0) + expense.amount;
-        });
-
-        for (let i = 1; i <= 5; i++) {
-            const weekStart = new Date(monthStartDate);
-            weekStart.setDate(weekStart.getDate() + (i - 1) * 7);
-            const weekEnd = new Date(weekStart);
-            weekEnd.setDate(weekEnd.getDate() + 6);
-            if (weekEnd > monthRange.end) weekEnd.setDate(monthRange.end.getDate());
-            if (weekStart > monthRange.end) break;
-            const total = weeklyTotals[i] || 0;
-            weeklySummaryBody.innerHTML += `<tr><td>第${i}週</td><td>${weekStart.getMonth()+1}/${weekStart.getDate()} ~ ${weekEnd.getMonth()+1}/${weekEnd.getDate()}</td><td>¥${total.toLocaleString()}</td></tr>`;
+        if (!data[currentMonthKey] || !data[currentMonthKey].expenses) return;
+        
+        const today = new Date();
+        const thisBudgetMonthKey = getMonthKey(today);
+        if(currentMonthKey !== thisBudgetMonthKey){
+            weeklySummaryBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#9CA3AF;">現在の月のデータではないため、週次比較は表示されません。</td></tr>`;
+            return;
         }
+        const thisWeekNumber = getWeekNumber(today);
+        
+        const processWeekData = (weekNum) => {
+            const totals = {};
+            if (weekNum < 1) return totals;
+            data[currentMonthKey].expenses
+                .filter(ex => getWeekNumber(new Date(ex.date)) === weekNum)
+                .forEach(ex => {
+                    totals[ex.category] = (totals[ex.category] || 0) + ex.amount;
+                });
+            return totals;
+        };
+        const currentWeekTotals = processWeekData(thisWeekNumber);
+        const prevWeekTotals = processWeekData(thisWeekNumber - 1);
+        
+        const labels = [...new Set([...Object.keys(currentWeekTotals), ...Object.keys(prevWeekTotals)])];
+        if(labels.length === 0){
+             weeklySummaryBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#9CA3AF;">今週と先週の支出データはありません。</td></tr>`;
+            return;
+        }
+
+        labels.forEach(category => {
+            const currentAmount = currentWeekTotals[category] || 0;
+            const prevAmount = prevWeekTotals[category] || 0;
+            let comparisonHTML = '-';
+            let comparisonClass = '';
+
+            if (prevAmount > 0) {
+                const diff = currentAmount - prevAmount;
+                const percent = (diff / prevAmount) * 100;
+                if (diff > 0) {
+                    comparisonClass = 'comparison-increase';
+                    comparisonHTML = `↑ ${Math.abs(percent).toFixed(0)}%`;
+                } else if (diff < 0) {
+                    comparisonClass = 'comparison-decrease';
+                    comparisonHTML = `↓ ${Math.abs(percent).toFixed(0)}%`;
+                }
+            } else if (currentAmount > 0) {
+                comparisonClass = 'comparison-increase';
+                comparisonHTML = '↑ (新規)';
+            }
+            weeklySummaryBody.innerHTML += `<tr><td><strong>${category}</strong></td><td>¥${currentAmount.toLocaleString()}</td><td class="${comparisonClass}">${comparisonHTML}</td></tr>`;
+        });
     }
     function renderIncomeList() {
         const container = document.getElementById('incomeItems');
@@ -325,7 +376,7 @@
             const container = document.getElementById(type === 'fixed' ? 'fixedCostItems' : 'variableCostItems');
             container.innerHTML = '';
             data[currentMonthKey].budget[type].forEach((item, index) => {
-                container.innerHTML += `<div class="editable-item card"><input type="text" value="${item.name}" onchange="updateBudgetItem('${type}', ${index}, 'name', this.value)"><input type="number" value="${item.amount}" onchange="updateBudgetItem('${type}', ${index}, 'amount', this.value)"><button class="delete-btn" onclick="deleteBudgetItem('${type}', ${index})">削除</button></div>`;
+                container.innerHTML += `<div class="editable-item card"><input type="text" value="${item.name}" onchange="updateBudgetItem('${type}', ${index}, 'name', this.value)"><input type="number" value="${item.amount}" onchange="updateBudGETItem('${type}', ${index}, 'amount', this.value)"><button class="delete-btn" onclick="deleteBudgetItem('${type}', ${index})">削除</button></div>`;
             });
         });
     }
@@ -390,6 +441,7 @@
     function renderExpenseCategoryOptions() {
         const select = document.getElementById('expenseCategory');
         select.innerHTML = '';
+        if (!data[currentMonthKey]) return;
         Object.values(data[currentMonthKey].budget).flat().forEach(cat => { select.innerHTML += `<option value="${cat.name}">${cat.name}</option>`; });
     }
     function addExpense(event) {
@@ -471,7 +523,7 @@
         if (!confirm(`月の開始日を「${newStartDay}日」に変更しますか？\n\n警告：すべての支出データが再計算されます。この操作は元に戻せません。`)) return;
         
         const allExpenses = Object.values(data).flatMap(monthData => monthData.expenses || []);
-        Object.keys(data).forEach(key => { if(data[key].expenses) data[key].expenses = []; });
+        Object.keys(data).forEach(key => { if(data[key] && data[key].expenses) data[key].expenses = []; });
         localStorage.setItem(LOCAL_STARTDAY_KEY, newStartDay);
 
         allExpenses.forEach(expense => {
@@ -555,6 +607,15 @@
         const start = new Date(year, month - 1, startDay);
         const end = new Date(year, month, startDay - 1);
         return { start, end };
+    }
+    function getWeekNumber(date) {
+        const monthStartDate = getMonthRange(currentMonthKey).start;
+        const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const startDate = new Date(monthStartDate.getFullYear(), monthStartDate.getMonth(), monthStartDate.getDate());
+        const diffTime = targetDate - startDate;
+        if (diffTime < 0) return -1;
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        return Math.floor(diffDays / 7) + 1;
     }
     
     document.addEventListener('DOMContentLoaded', () => {
