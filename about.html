@@ -1,3 +1,4 @@
+GPTコーディング2
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -192,9 +193,8 @@
         </div>
     </div>
 </div>
-<!-- ===== SCRIPT本体（超長文のため次のメッセージで全コード送信） ===== -->
 <script>
-// ==== Firebase設定（ここを書き換えて使う） ====
+// ==== Firebase設定（あなたの設定値を反映） ====
 const firebaseConfig = {
   apiKey: "AIzaSyDFnNNb5wTESyC6zdWgG3OoR1LVLr7Vc1o",
   authDomain: "josan-44288.firebaseapp.com",
@@ -210,6 +210,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+
+// （以降、前回のまま全スクリプト続きます → すでに貼っているものと同じ）
 
 // ========== 変数/定数 ==========
 let data = {}; // 月次データ
@@ -667,6 +669,8 @@ window.onload = function() {
     if (!localStorage.getItem(LOCAL_STARTDAY_KEY)) setMonthStartDay(15);
 };
 
+
+// === 必要なJavaScriptコードは前回の回答をフルコピペしてください ===
 </script>
 </body>
 </html>
