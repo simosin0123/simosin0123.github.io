@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>予算管理システム v3.2.1</title>
+    <title>予算管理システム v3.3 (最終完成版)</title>
     
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -40,6 +40,7 @@
         label { display: block; margin-bottom: 5px; font-weight: 600; }
         input, select { width: 100%; padding: 10px 12px; border: 2px solid var(--border-light); border-radius: 6px; font-size: 16px; background: var(--surface-light); color: var(--text-light); }
         button { background: var(--primary-color); color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.2s; margin-top: 10px; }
+        button:hover { background: var(--primary-hover); }
         .delete-btn { background: var(--danger-color); }
         .editable-item { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px; background: #F3F4F6; border-radius: 6px; }
         .summary-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -63,22 +64,11 @@
         .sync-status.success { background: var(--success-color); }
         .sync-status.error { background: var(--danger-color); }
         .sync-status.syncing { background: var(--secondary-color); }
-        
         @media (max-width: 768px) {
-            .tabs {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                scrollbar-width: none; /* Firefox */
-            }
-            .tabs::-webkit-scrollbar {
-                display: none; /* Chrome, Safari */
-            }
-            .tab {
-                flex: 0 0 auto;
-                padding: 15px 20px;
-            }
+            .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+            .tabs::-webkit-scrollbar { display: none; }
+            .tab { flex: 0 0 auto; padding: 15px 20px; }
         }
-
         @media (prefers-color-scheme: dark) {
             body { background-color: var(--background-dark); color: var(--text-dark); }
             h2, h3, #currentMonth { color: var(--text-dark); }
@@ -94,7 +84,7 @@
 </head>
 <body>
     <header>
-        <h1>💰 予算管理システム v3.2.1</h1>
+        <h1>💰 予算管理システム v3.3 (最終完成版)</h1>
         <p>あなたの予算をスマートに管理しましょう</p>
     </header>
 
@@ -148,7 +138,12 @@
                 <table class="summary-table"><thead><tr><th>カテゴリー</th><th>今週の支出</th><th>先週との比較</th></tr></thead><tbody id="weeklyCategorySummary"></tbody></table>
             </div>
             <div id="incomeTab" class="content"><h2>収入設定</h2><div id="incomeItems" class="grid"></div><button onclick="addIncomeItem()">+ 収入項目を追加</button></div>
-            <div id="budgetTab" class="content"><h2>予算設定</h2><h3>固定費</h3><div id="fixedCostItems" class="grid"></div><button onclick="addBudgetItem('fixed')">+ 固定費項目を追加</button><h3 style="margin-top: 20px;">変動費</h3><div id="variableCostItems" class="grid"></div><button onclick="addBudgetItem('variable')">+ 変動費項目を追加</button></div>
+            <div id="budgetTab" class="content">
+                <h2>予算設定</h2>
+                <h3>固定費</h3><div id="fixedCostItems" class="grid"></div><button onclick="addBudgetItem('fixed')">+ 固定費を追加</button>
+                <h3 style="margin-top: 20px;">変動費</h3><div id="variableCostItems" class="grid"></div><button onclick="addBudgetItem('variable')">+ 変動費を追加</button>
+                <h3 style="margin-top: 20px;">貯蓄・投資</h3><div id="savingsItems" class="grid"></div><button onclick="addBudgetItem('savings')">+ 貯蓄項目を追加</button>
+            </div>
             <div id="expenseTab" class="content"><h2>支出入力</h2><div class="card"><div class="input-group"><label>日付</label><div class="calendar-input"><input type="text" id="expenseDate" readonly placeholder="クリックして日付を選択" onclick="toggleCalendar()"><div id="calendarPopup" class="calendar-popup"><div class="calendar-header"><button onclick="changeCalendarMonth(-1)">←</button><span id="calendarMonthLabel"></span><button onclick="changeCalendarMonth(1)">→</button></div><div class="calendar-grid" id="calendarWeekdays"></div><div class="calendar-grid" id="calendarGrid"></div></div></div></div><div class="input-group"><label>カテゴリー</label><select id="expenseCategory"></select></div><div class="input-group"><label>金額</label><input type="number" id="expenseAmount" placeholder="0"></div><div class="input-group"><label>メモ</label><input type="text" id="expenseMemo"></div><button onclick="addExpense(event)">支出を追加</button></div><h3 style="margin-top: 30px;">今月の支出一覧</h3><div id="expenseList" class="expense-list"></div></div>
             <div id="analysisTab" class="content"><h2>📈 分析</h2><div class="card"><h3>先月との支出比較</h3><p>カテゴリーごとの支出額を先月のデータと比較します。</p><div style="margin-top: 20px; height: 400px; position: relative;"><canvas id="comparisonChart"></canvas></div></div><div class="card" style="margin-top:20px;"><h3>データのエクスポート</h3><button onclick="exportCSV()">📊 CSVエクスポート</button></div></div>
             <div id="settingsTab" class="content"><h2>⚙️ 設定</h2><div class="settings-section card"><h3>月の開始日設定</h3><p>月の区切りとなる開始日を1〜28の間で設定できます。変更を適用すると、すべての支出データが新しい区切りに基づいて再計算されます。</p><div class="input-group" style="display: flex; align-items: center; gap: 10px;"><input type="number" id="monthStartDayInput" min="1" max="28" style="flex: 1; margin-top:0;"><button onclick="applyNewMonthStartDay()" style="flex-shrink: 0; margin-top:0;">変更を適用</button></div><p>現在の設定: <strong id="currentStartDayLabel">15</strong>日</p></div><div class="settings-section card" style="margin-top:20px;"><h3>全データリセット</h3><p>すべてのデータを削除します。この操作は元に戻せません。</p><button onclick="resetAllData()" class="delete-btn">🗑️ 全データ削除</button></div></div>
@@ -158,7 +153,7 @@
 
 <script>
     // ▼▼▼ あなたのFirebase設定をここに！ ▼▼▼
-   const firebaseConfig = {
+    const firebaseConfig = {
   apiKey: "AIzaSyDFnNNb5wTESyC6zdWgG30oR1LVLr7Vc1o",
   authDomain: "josan-44288.firebaseapp.com",
   databaseURL: "https://josan-44288-default-rtdb.firebaseio.com",
@@ -169,9 +164,7 @@
   measurementId: "G-KTJRYVCV87"
 };
 
-    // ==================================
     // 1. Firebaseと基本設定
-    // ==================================
     if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
@@ -183,9 +176,7 @@
     const LOCAL_STARTDAY_KEY = "budgetAppStartDay";
     const LOCAL_MONTH_KEY = "budgetAppLastMonth";
 
-    // ==================================
     // 2. 認証関連
-    // ==================================
     auth.onAuthStateChanged(user => {
         if (unsubscribe) unsubscribe();
         if (user) {
@@ -229,16 +220,15 @@
         document.getElementById('registerScreen').style.display = 'block';
     }
 
-    // ==================================
     // 3. データ操作と同期
-    // ==================================
     function initializeMonth(key) {
         if (!data[key]) {
             data[key] = {
                 income: [{ name: "アルバイト", amount: 100000 }],
                 budget: {
                     fixed: [{ name: "家賃", amount: 50000 }, { name: "通信費", amount: 5000 }],
-                    variable: [{ name: "食費", amount: 30000 }, { name: "交際費", amount: 10000 }]
+                    variable: [{ name: "食費", amount: 30000 }, { name: "交際費", amount: 10000 }],
+                    savings: [{ name: "積立NISA", amount: 33000 }]
                 },
                 expenses: []
             };
@@ -257,9 +247,7 @@
         }
     }
 
-    // ==================================
     // 4. UI更新と表示ロジック
-    // ==================================
     function showTab(tabId) {
         document.querySelectorAll('.content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
@@ -317,7 +305,7 @@
         const today = new Date();
         const thisBudgetMonthKey = getMonthKey(today);
         if(currentMonthKey !== thisBudgetMonthKey){
-            weeklySummaryBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#9CA3AF;">現在の月のデータではないため、週次比較は表示されません。</td></tr>`;
+            weeklySummaryBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#9CA3AF;">現在の月ではないため、週次比較は表示されません。</td></tr>`;
             return;
         }
         const thisWeekNumber = getWeekNumber(today);
@@ -372,12 +360,15 @@
         });
     }
     function renderBudgetList() {
-        ['fixed', 'variable'].forEach(type => {
-            const container = document.getElementById(type === 'fixed' ? 'fixedCostItems' : 'variableCostItems');
+        ['fixed', 'variable', 'savings'].forEach(type => {
+            const containerId = type === 'fixed' ? 'fixedCostItems' : type === 'variable' ? 'variableCostItems' : 'savingsItems';
+            const container = document.getElementById(containerId);
             container.innerHTML = '';
-            data[currentMonthKey].budget[type].forEach((item, index) => {
-                container.innerHTML += `<div class="editable-item card"><input type="text" value="${item.name}" onchange="updateBudgetItem('${type}', ${index}, 'name', this.value)"><input type="number" value="${item.amount}" onchange="updateBudGETItem('${type}', ${index}, 'amount', this.value)"><button class="delete-btn" onclick="deleteBudgetItem('${type}', ${index})">削除</button></div>`;
-            });
+            if (data[currentMonthKey].budget[type]) {
+                data[currentMonthKey].budget[type].forEach((item, index) => {
+                    container.innerHTML += `<div class="editable-item card"><input type="text" value="${item.name}" onchange="updateBudgetItem('${type}', ${index}, 'name', this.value)"><input type="number" value="${item.amount}" onchange="updateBudgetItem('${type}', ${index}, 'amount', this.value)"><button class="delete-btn" onclick="deleteBudgetItem('${type}', ${index})">削除</button></div>`;
+                });
+            }
         });
     }
     function updateExpenseList() {
@@ -390,8 +381,7 @@
         });
     }
     function updateHeader() {
-        const range = getMonthRange(currentMonthKey);
-        document.getElementById('currentMonth').textContent = `${range.start.getFullYear()}年 ${range.start.getMonth() + 1}月`;
+        document.getElementById('currentMonth').textContent = `${getMonthRange(currentMonthKey).start.getFullYear()}年 ${getMonthRange(currentMonthKey).start.getMonth() + 1}月`;
     }
     function showSyncStatus(type, message) {
         const statusDiv = document.getElementById('syncStatus');
@@ -401,9 +391,7 @@
         setTimeout(() => statusDiv.classList.remove('show'), 2000);
     }
     
-    // ==================================
     // 5. ユーザー操作とイベント
-    // ==================================
     function changeMonth(diff) {
         const [year, month] = currentMonthKey.split('-').map(Number);
         const newDate = new Date(year, month - 1 + diff, getMonthStartDay());
@@ -467,9 +455,7 @@
         if (confirm('この支出を削除しますか？')) { data[currentMonthKey].expenses.splice(index, 1); syncToFirestore(); }
     }
 
-    // ==================================
     // 6. 新機能：カレンダー
-    // ==================================
     function toggleCalendar() {
         const popup = document.getElementById('calendarPopup');
         const isVisible = popup.classList.toggle('show');
@@ -508,9 +494,7 @@
         toggleCalendar();
     }
 
-    // ==================================
     // 7. 新機能：設定
-    // ==================================
     function updateSettingsDisplay() {
         const startDay = getMonthStartDay();
         document.getElementById('currentStartDayLabel').textContent = startDay;
@@ -542,9 +526,7 @@
         if (confirm('本当にすべてのデータを削除しますか？元に戻せません。')) { data = {}; syncToFirestore(); }
     }
 
-    // ==================================
     // 8. 新機能：分析
-    // ==================================
     function renderComparisonChart() {
         if (!document.getElementById('analysisTab').classList.contains('active')) return;
         const ctx = document.getElementById('comparisonChart')?.getContext('2d');
@@ -591,9 +573,7 @@
         link.click();
     }
     
-    // ==================================
     // 9. ヘルパー関数と初期化
-    // ==================================
     function getMonthStartDay() { return parseInt(localStorage.getItem(LOCAL_STARTDAY_KEY) || "15"); }
     function getMonthKey(date) {
         const d = new Date(date);
