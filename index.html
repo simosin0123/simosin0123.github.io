@@ -213,9 +213,10 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 // Firestoreのオフライン機能を有効化（推奨）
-// これによりネット接続が不安定でも操作が安定します
-db.enablePersistence().catch(err => {
-    console.warn("Firestoreのオフライン永続化に失敗:", err.code);
+db.enablePersistence({ synchronizeTabs: true }) // ★★★ マルチタブ同期を有効化 ★★★
+  .catch(err => {
+    // これによりネット接続が不安定でも操作が安定します
+    console.warn("Firestoreのオフライン永続化に失敗:", err.code);
 });
     
 // （以降、前回のまま全スクリプト続きます → すでに貼っているものと同じ）
