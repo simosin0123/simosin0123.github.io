@@ -194,6 +194,7 @@
 </div>
 <script>
 // ==== Firebase設定（あなたの設定値を反映） ====
+// ==== Firebase設定（あなたの設定値を反映） ====
 const firebaseConfig = {
   apiKey: "AIzaSyDFnNNb5wTESyC6zdWgG30oR1LVLr7Vc1o",
   authDomain: "josan-44288.firebaseapp.com",
@@ -203,20 +204,18 @@ const firebaseConfig = {
   appId: "1:844486822796:web:320679767e0ad86355a4a9",
   measurementId: "G-KTJRYVCV87"
 };
-// ---- ここを自分のFirebaseプロジェクト情報に！ ----
-// firebaseConfig という変数に設定情報が入っているとして
+
 console.log("実際に使われようとしている Firebase 設定:", firebaseConfig);
 
-// その後、Firebaseを初期化
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
+// Firebaseがまだ初期化されていない場合のみ初期化
+if (!firebase.apps.length) { // ここで初期化済みかチェック
+  firebase.initializeApp(firebaseConfig); // チェックを通過した場合のみ初期化を実行
 }
 
-// Firebase初期化
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-
+// 初期化されたアプリインスタンスを取得
+const app = firebase.app(); // 初期化済みのアプリを取得します
+const auth = firebase.auth(app); // 初期化済みのアプリを使ってサービスを取得
+const db = firebase.firestore(app); // 初期化済みのアプリを使ってサービスを取得
 // （以降、前回のまま全スクリプト続きます → すでに貼っているものと同じ）
 
 // ========== 変数/定数 ==========
