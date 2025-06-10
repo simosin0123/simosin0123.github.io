@@ -204,6 +204,13 @@ const firebaseConfig = {
   measurementId: "G-KTJRYVCV87"
 };
 // ---- ここを自分のFirebaseプロジェクト情報に！ ----
+// firebaseConfig という変数に設定情報が入っているとして
+console.log("実際に使われようとしている Firebase 設定:", firebaseConfig);
+
+// その後、Firebaseを初期化
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
 
 // Firebase初期化
 firebase.initializeApp(firebaseConfig);
