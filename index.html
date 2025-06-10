@@ -156,7 +156,7 @@
                     <div class="input-group"><label>メモ（任意）</label>
                         <input type="text" id="expenseMemo">
                     </div>
-                    <button onclick="addExpense()">支出を追加</button>
+                    <button onclick="addExpense(event)">支出を追加</button>
                 </div>
             </div>
             <h3>今月の支出一覧</h3>
@@ -502,7 +502,6 @@ async function deleteBudgetCategory(group, idx) {
     }
 }
 
-
 // ========== 支出入力 ==========
 function renderExpenseCategoryOptions() {
     initializeMonth(currentMonth);
@@ -514,9 +513,9 @@ function renderExpenseCategoryOptions() {
     document.getElementById('expenseCategory').innerHTML = html;
 }
 
-async function addExpense() {
-    // ボタン要素を特定し、元のテキストを記憶しておく
-    const btn = document.querySelector('#expenseTab .card button');
+async function addExpense(event) {
+    // クリックされたボタンそのものを取得するので、確実です
+    const btn = event.target;
     const originalBtnText = btn.textContent;
 
     // 1. ボタンを「保存中」状態にする
@@ -535,6 +534,7 @@ async function addExpense() {
         return;
     }
 
+    // タイムゾーンの問題を避けるためUTCで日付を扱う
     const [yyyy, mm, dd] = d.split('-').map(Number);
     const utcDate = new Date(Date.UTC(yyyy, mm - 1, dd));
 
@@ -581,41 +581,6 @@ async function addExpense() {
     }
 }
 
-    // タイムゾーンの問題を避けるためUTCで日付を扱う
-    const [yyyy, mm, dd] = d.split('-').map(Number);
-    const utcDate = new Date(Date.UTC(yyyy, mm - 1, dd));
-
-    const monthKey = getMonthKey(utcDate);
-    initializeMonth(monthKey);
-
-    data[monthKey].expenses.push({
-        date: utcDate.toISOString(),
-        category: cat,
-        amount: amt,
-        memo,
-        week: getWeekNumber(utcDate, monthKey)
-    });
-
-    try {
-        await syncToFirestore(); // Firestoreへの書き込み完了を待つ
-        alert('支出を保存しました。');
-
-        // UI更新は保存が成功してから行う
-        document.getElementById('expenseDate').value = new Date().toISOString().slice(0, 10); // 日付を今日にリセット
-        document.getElementById('expenseAmount').value = '';
-        document.getElementById('expenseMemo').value = '';
-        renderExpenseCategoryOptions();
-        updateExpenseList();
-        updateDisplay();
-
-    } catch (e) {
-        alert('保存中にエラーが発生しました: ' + e.message);
-        // エラーが起きた場合はローカルの変更を元に戻すか、再試行を促すのが親切
-    } finally {
-        btn.disabled = false; // 処理が終わったらボタンを有効化
-    }
-}
-
 function updateExpenseList() {
     initializeMonth(currentMonth);
     let arr = [...data[currentMonth].expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -624,13 +589,13 @@ function updateExpenseList() {
         // UTCの日付を正しく表示するためにgetMonth/getDateではなくgetUTCMonth/getUTCDateを使う
         return `<div class="expense-item">
             <span><strong>${d.getUTCMonth() + 1}/${d.getUTCDate()}</strong> ${ex.category} ¥${ex.amount.toLocaleString()} ${ex.memo ? '<span class="small">- ' + ex.memo + '</span>' : ''}</span>
-            <button class="delete-btn" onclick="deleteExpense(${idx})">削除</button>
+            <button class="delete-btn" onclick="deleteExpense(event, ${idx})">削除</button>
         </div>`;
     }).join('');
     document.getElementById('expenseList').innerHTML = html;
 }
 
-async function deleteExpense(idx) {
+async function deleteExpense(event, idx) {
     // 削除対象のインデックスはソート後のものなので、元の配列から見つける必要がある
     const sortedExpenses = [...data[currentMonth].expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
     const targetExpense = sortedExpenses[idx];
