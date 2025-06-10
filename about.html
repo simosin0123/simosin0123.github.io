@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>予算管理システム（Firebase同期・カスタム対応）</title>
+    <title>予算管理システム</title>
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -195,10 +195,10 @@
 <script>
 // ==== Firebase設定（あなたの設定値を反映） ====
 const firebaseConfig = {
-  apiKey: "AIzaSyDFnNNb5wTESyC6zdWgG30oR1LVLr7Vc1o",
+  apiKey: "AIzaSyDFnNNb5wTESyC6zdWgG3OoR1LVLr7Vc1o",
   authDomain: "josan-44288.firebaseapp.com",
   projectId: "josan-44288",
-  storageBucket: "josan-44288.firebasestorage.app",
+  storageBucket: "josan-44288.appspot.com",
   messagingSenderId: "844486822796",
   appId: "1:844486822796:web:320679767e0ad86355a4a9",
   measurementId: "G-KTJRYVCV87"
@@ -207,16 +207,6 @@ const firebaseConfig = {
 // firebaseConfig という変数に設定情報が入っているとして
 console.log("実際に使われようとしている Firebase 設定:", firebaseConfig);
 
- const LOCAL_DATA_KEY = 'budgetAppData';
-  function saveLocalData() {
-    localStorage.setItem(LOCAL_DATA_KEY, JSON.stringify(data));
-  }
-  function loadLocalData() {
-    const s = localStorage.getItem(LOCAL_DATA_KEY);
-    if (s) {
-      data = JSON.parse(s);
-    }
-  }
 // その後、Firebaseを初期化
 if (!firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
@@ -226,28 +216,9 @@ if (!firebase.apps.length) {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
- auth.onAuthStateChanged(async user => {
-    if (user) {
-      loadLocalData();           // (1) localStorage→data
-      updateDisplay();           // (2) まず表示
-      await syncFromFirestore(); // (3) Cloud同期
-      updateDisplay();           // (4) 最新画面反映
-      showMainApp();             // (5) アプリ表示
-    } else {
-      showLogin();
+
 // （以降、前回のまま全スクリプト続きます → すでに貼っているものと同じ）
-const firebaseConfig = { /* your config */ };
-  firebase.initializeApp(firebaseConfig);
-  firebase.firestore().enablePersistence().catch(err => {
-    if (err.code === 'failed-precondition') {
-      console.warn('複数タブで開いているため永続化できません');
-    } else if (err.code === 'unimplemented') {
-      console.warn('永続化未サポート');
-    }
-  });
-  const auth = firebase.auth();
-  const db   = firebase.firestore();
-    
+
 // ========== 変数/定数 ==========
 let data = {}; // 月次データ
 let currentMonth = ""; // '2024-06'など
@@ -282,17 +253,7 @@ function getWeekNumber(date, monthKey) {
     const daysSinceStart = Math.floor((date - range.start) / (1000 * 60 * 60 * 24));
     return Math.min(Math.floor(daysSinceStart / 7) + 1, 5);
 }
- async function syncToFirestore() {
-    saveLocalData();             // (1) localバックアップ
-    if (!userUid) return;
-    try {
-      await db.collection("budgets").doc(userUid)
-              .set(data, { merge: true });
-      saveLocalData();           // (2) 念のため再度バックアップ
-    } catch (e) {
-      console.warn("Firestore書き込み失敗:", e);
-    }
-        
+
 // ========== Firebase同期ロジック ==========
 async function syncToFirestore() {
     if (!userUid) return;
@@ -557,14 +518,13 @@ async function addExpense() {
     week: getWeekNumber(utcDate, monthKey)
   });
 
-  saveLocalData();            // (1) local即時バックアップ
-    try {
-      await syncToFirestore();  // (2) Cloud同期完了を待つ
-      alert('支出を保存しました');
-    } catch (e) {
-      alert('保存中にエラーが発生しました: ' + e.message);
-    }
-
+  try {
+    // Firestore への書き込み完了を待つ
+    await syncToFirestore();
+    alert('支出を保存しました');
+  } catch (e) {
+    alert('保存中にエラーが発生しました: ' + e.message);
+  }
 
   // UI更新
   document.getElementById('expenseDate').value   = '';
@@ -743,9 +703,6 @@ window.onload = function() {
     if (!localStorage.getItem(LOCAL_STARTDAY_KEY)) setMonthStartDay(15);
 };
 
- window.onload = function() {
-    if (!localStorage.getItem(LOCAL_STARTDAY_KEY)) setMonthStartDay(15);
-    // 認証状態をトリガーさせるため、onAuthStateChangedはすでに実行される
 
 // === 必要なJavaScriptコードは前回の回答をフルコピペしてください ===
 </script>
