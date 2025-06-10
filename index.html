@@ -515,18 +515,71 @@ function renderExpenseCategoryOptions() {
 }
 
 async function addExpense() {
-    const btn = document.querySelector('#expenseTab button');
-    btn.disabled = true; // 連打防止
+    // ボタン要素を特定し、元のテキストを記憶しておく
+    const btn = document.querySelector('#expenseTab .card button');
+    const originalBtnText = btn.textContent;
+
+    // 1. ボタンを「保存中」状態にする
+    btn.disabled = true;
+    btn.textContent = '保存中...';
 
     const d = document.getElementById('expenseDate').value;
     const cat = document.getElementById('expenseCategory').value;
     const amt = parseFloat(document.getElementById('expenseAmount').value) || 0;
     const memo = document.getElementById('expenseMemo').value;
+
     if (!d || !cat || !amt) {
         alert('日付・カテゴリー・金額は必須です。');
         btn.disabled = false;
+        btn.textContent = originalBtnText; // 元の状態に戻す
         return;
     }
+
+    const [yyyy, mm, dd] = d.split('-').map(Number);
+    const utcDate = new Date(Date.UTC(yyyy, mm - 1, dd));
+
+    const monthKey = getMonthKey(utcDate);
+    initializeMonth(monthKey);
+
+    data[monthKey].expenses.push({
+        date: utcDate.toISOString(),
+        category: cat,
+        amount: amt,
+        memo,
+        week: getWeekNumber(utcDate, monthKey)
+    });
+
+    try {
+        // 2. データベースへの保存を待つ
+        await syncToFirestore();
+
+        // 3. 成功したことをボタンの表示でフィードバック
+        btn.classList.add('success'); // ボタンを一時的に緑色にする
+        btn.textContent = '保存完了 ✅';
+
+        // UIを更新
+        document.getElementById('expenseDate').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('expenseAmount').value = '';
+        document.getElementById('expenseMemo').value = '';
+        renderExpenseCategoryOptions();
+        updateExpenseList();
+        updateDisplay();
+
+    } catch (e) {
+        // 4. 失敗した場合もフィードバック
+        btn.classList.add('danger'); // ボタンを一時的に赤色にする
+        btn.textContent = '保存失敗 ❌';
+        alert('保存中にエラーが発生しました: ' + e.message);
+
+    } finally {
+        // 5. 2秒後にボタンを元の状態に戻す
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.textContent = originalBtnText;
+            btn.classList.remove('success', 'danger');
+        }, 2000);
+    }
+}
 
     // タイムゾーンの問題を避けるためUTCで日付を扱う
     const [yyyy, mm, dd] = d.split('-').map(Number);
