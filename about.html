@@ -282,7 +282,6 @@ function loadLocalBackup() {
     let s = localStorage.getItem("backup_"+userUid);
     if (s) data = JSON.parse(s);
 }
-async function flushOfflineQueue() {}
 
 // ========== 認証 ==========
 async function register() {
