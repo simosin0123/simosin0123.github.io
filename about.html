@@ -194,29 +194,30 @@
 </div>
 <script>
 // ==== Firebase設定（あなたの設定値を反映） ====
-// ==== Firebase設定（あなたの設定値を反映） ====
 const firebaseConfig = {
-  apiKey: "AIzaSyDFnNNb5wTESyC6zdWgG30oR1LVLr7Vc1o",
-  authDomain: "josan-44288.firebaseapp.com",
-  projectId: "josan-44288",
-  storageBucket: "josan-44288.firebasestorage.app",
-  messagingSenderId: "844486822796",
-  appId: "1:844486822796:web:320679767e0ad86355a4a9",
-  measurementId: "G-KTJRYVCV87"
+    // ここはご自身のFirebaseプロジェクトの情報にしてください
+    apiKey: "AIzaSyDFnNNb5wTESyC6zdWgG30oR1LVLr7Vc1o",
+    authDomain: "josan-44288.firebaseapp.com",
+    projectId: "josan-44288",
+    storageBucket: "josan-44288.firebasestorage.app",
+    messagingSenderId: "844486822796",
+    appId: "1:844486822796:web:320679767e0ad86355a4a9",
+    measurementId: "G-KTJRYVCV87"
 };
 
-console.log("実際に使われようとしている Firebase 設定:", firebaseConfig);
-
 // Firebaseがまだ初期化されていない場合のみ初期化
-if (!firebase.apps.length) { // ここで初期化済みかチェック
-  firebase.initializeApp(firebaseConfig); // チェックを通過した場合のみ初期化を実行
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
 }
+const auth = firebase.auth();
+const db = firebase.firestore();
 
-// 初期化されたアプリインスタンスを取得
-const app = firebase.app(); // 初期化済みのアプリを取得します
-const auth = firebase.auth(app); // 初期化済みのアプリを使ってサービスを取得
-const db = firebase.firestore(app); // 初期化済みのアプリを使ってサービスを取得
-
+// Firestoreのオフライン機能を有効化（推奨）
+// これによりネット接続が不安定でも操作が安定します
+db.enablePersistence().catch(err => {
+    console.warn("Firestoreのオフライン永続化に失敗:", err.code);
+});
+    
 // （以降、前回のまま全スクリプト続きます → すでに貼っているものと同じ）
 
 // ========== 変数/定数 ==========
@@ -416,32 +417,44 @@ function renderIncomeList() {
     list.forEach((item, idx) => {
         html += `
         <div class="input-group">
-            <input type="text" value="${item.name}" onchange="editIncomeName(${idx},this.value)" style="width:40%;">
-            <input type="number" value="${item.amount}" onchange="editIncomeAmount(${idx},this.value)" style="width:35%;margin-left:4px;">
+            <input type="text" value="${item.name}" onchange="editIncomeName(${idx}, this.value)" style="width:40%;">
+            <input type="number" value="${item.amount}" onchange="editIncomeAmount(${idx}, this.value)" style="width:35%;margin-left:4px;">
             <button class="delete-btn" onclick="deleteIncomeCategory(${idx})">削除</button>
         </div>`;
     });
     document.getElementById('incomeList').innerHTML = html;
-    syncToFirestore();
 }
-function editIncomeName(idx, val) {
+
+async function editIncomeName(idx, val) {
     data[currentMonth].income[idx].name = val;
-    syncToFirestore(); renderIncomeList();
+    await syncToFirestore();
+    renderIncomeList();
+    updateDisplay(); // 変更が概要タブにも反映されるように追加
 }
-function editIncomeAmount(idx, val) {
+
+async function editIncomeAmount(idx, val) {
     data[currentMonth].income[idx].amount = parseFloat(val) || 0;
-    syncToFirestore(); renderIncomeList();
+    await syncToFirestore();
+    renderIncomeList();
+    updateDisplay(); // 変更が概要タブにも反映されるように追加
 }
-function addIncomeCategory() {
+
+async function addIncomeCategory() {
     data[currentMonth].income.push({ name: '新規項目', amount: 0 });
-    syncToFirestore(); renderIncomeList();
+    await syncToFirestore();
+    renderIncomeList();
+    updateDisplay();
 }
-function deleteIncomeCategory(idx) {
-    if (confirm('削除しますか？')) {
+
+async function deleteIncomeCategory(idx) {
+    if (confirm('この収入項目を削除しますか？')) {
         data[currentMonth].income.splice(idx, 1);
-        syncToFirestore(); renderIncomeList();
+        await syncToFirestore();
+        renderIncomeList();
+        updateDisplay();
     }
 }
+
 
 // ========== 予算カテゴリ編集 ==========
 function renderBudgetList() {
@@ -450,33 +463,45 @@ function renderBudgetList() {
         let html = '';
         data[currentMonth].budget[group].forEach((cat, idx) => {
             html += `<div class="category-manage">
-            <input type="text" value="${cat.name}" onchange="editBudgetCategoryName('${group}',${idx},this.value)" style="width:45%;">
-            <input type="number" value="${cat.amount}" onchange="editBudgetCategoryAmount('${group}',${idx},this.value)" style="width:35%;">
-            <button class="delete-btn" onclick="deleteBudgetCategory('${group}',${idx})">削除</button>
+            <input type="text" value="${cat.name}" onchange="editBudgetCategoryName('${group}', ${idx}, this.value)" style="width:45%;">
+            <input type="number" value="${cat.amount}" onchange="editBudgetCategoryAmount('${group}', ${idx}, this.value)" style="width:35%;">
+            <button class="delete-btn" onclick="deleteBudgetCategory('${group}', ${idx})">削除</button>
             </div>`;
         });
         document.getElementById('budget' + (group[0].toUpperCase() + group.slice(1))).innerHTML = html;
     });
-    syncToFirestore();
 }
-function editBudgetCategoryName(group, idx, val) {
+
+async function editBudgetCategoryName(group, idx, val) {
     data[currentMonth].budget[group][idx].name = val;
-    syncToFirestore(); renderBudgetList();
+    await syncToFirestore();
+    renderBudgetList();
+    updateDisplay();
 }
-function editBudgetCategoryAmount(group, idx, val) {
+
+async function editBudgetCategoryAmount(group, idx, val) {
     data[currentMonth].budget[group][idx].amount = parseFloat(val) || 0;
-    syncToFirestore(); renderBudgetList();
+    await syncToFirestore();
+    renderBudgetList();
+    updateDisplay();
 }
-function addBudgetCategory(group) {
+
+async function addBudgetCategory(group) {
     data[currentMonth].budget[group].push({ name: '新規', amount: 0 });
-    syncToFirestore(); renderBudgetList();
+    await syncToFirestore();
+    renderBudgetList();
+    updateDisplay();
 }
-function deleteBudgetCategory(group, idx) {
-    if (confirm('削除しますか？')) {
+
+async function deleteBudgetCategory(group, idx) {
+    if (confirm('この予算カテゴリを削除しますか？')) {
         data[currentMonth].budget[group].splice(idx, 1);
-        syncToFirestore(); renderBudgetList();
+        await syncToFirestore();
+        renderBudgetList();
+        updateDisplay();
     }
 }
+
 
 // ========== 支出入力 ==========
 function renderExpenseCategoryOptions() {
@@ -488,75 +513,88 @@ function renderExpenseCategoryOptions() {
     let html = opts.map(cat => `<option value="${cat}">${cat}</option>`).join('');
     document.getElementById('expenseCategory').innerHTML = html;
 }
-// 旧版を丸ごと消して、以下を貼り付けてください
+
 async function addExpense() {
-  const btn = document.querySelector('#expenseTab button');
-  btn.disabled = true;  // 連打防止
+    const btn = document.querySelector('#expenseTab button');
+    btn.disabled = true; // 連打防止
 
-  const d   = document.getElementById('expenseDate').value;
-  const cat = document.getElementById('expenseCategory').value;
-  const amt = parseFloat(document.getElementById('expenseAmount').value) || 0;
-  const memo= document.getElementById('expenseMemo').value;
-  if (!d || !cat || !amt) {
-    alert('日付・カテゴリー・金額は必須');
-    btn.disabled = false;
-    return;
-  }
+    const d = document.getElementById('expenseDate').value;
+    const cat = document.getElementById('expenseCategory').value;
+    const amt = parseFloat(document.getElementById('expenseAmount').value) || 0;
+    const memo = document.getElementById('expenseMemo').value;
+    if (!d || !cat || !amt) {
+        alert('日付・カテゴリー・金額は必須です。');
+        btn.disabled = false;
+        return;
+    }
 
-  // UTC深夜0時で日付固定
-  const [yyyy, mm, dd] = d.split('-').map(Number);
-  const utcDate = new Date(Date.UTC(yyyy, mm - 1, dd, 0, 0, 0));
+    // タイムゾーンの問題を避けるためUTCで日付を扱う
+    const [yyyy, mm, dd] = d.split('-').map(Number);
+    const utcDate = new Date(Date.UTC(yyyy, mm - 1, dd));
 
-  const monthKey = getMonthKey(utcDate);
-  initializeMonth(monthKey);
+    const monthKey = getMonthKey(utcDate);
+    initializeMonth(monthKey);
 
-  data[monthKey].expenses.push({
-    date: utcDate.toISOString(),
-    category: cat,
-    amount: amt,
-    memo,
-    week: getWeekNumber(utcDate, monthKey)
-  });
+    data[monthKey].expenses.push({
+        date: utcDate.toISOString(),
+        category: cat,
+        amount: amt,
+        memo,
+        week: getWeekNumber(utcDate, monthKey)
+    });
 
-  try {
-    // Firestore への書き込み完了を待つ
-    await syncToFirestore();
-    alert('支出を保存しました');
-  } catch (e) {
-    alert('保存中にエラーが発生しました: ' + e.message);
-  }
+    try {
+        await syncToFirestore(); // Firestoreへの書き込み完了を待つ
+        alert('支出を保存しました。');
 
-  // UI更新
-  document.getElementById('expenseDate').value   = '';
-  document.getElementById('expenseAmount').value = '';
-  document.getElementById('expenseMemo').value   = '';
-  renderExpenseCategoryOptions();
-  updateExpenseList();
-  updateDisplay();
+        // UI更新は保存が成功してから行う
+        document.getElementById('expenseDate').value = new Date().toISOString().slice(0, 10); // 日付を今日にリセット
+        document.getElementById('expenseAmount').value = '';
+        document.getElementById('expenseMemo').value = '';
+        renderExpenseCategoryOptions();
+        updateExpenseList();
+        updateDisplay();
 
-  btn.disabled = false;
+    } catch (e) {
+        alert('保存中にエラーが発生しました: ' + e.message);
+        // エラーが起きた場合はローカルの変更を元に戻すか、再試行を促すのが親切
+    } finally {
+        btn.disabled = false; // 処理が終わったらボタンを有効化
+    }
 }
+
 function updateExpenseList() {
     initializeMonth(currentMonth);
     let arr = [...data[currentMonth].expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
     let html = arr.map((ex, idx) => {
         let d = new Date(ex.date);
+        // UTCの日付を正しく表示するためにgetMonth/getDateではなくgetUTCMonth/getUTCDateを使う
         return `<div class="expense-item">
-            <span><strong>${d.getMonth() + 1}/${d.getDate()}</strong> ${ex.category} ¥${ex.amount.toLocaleString()} ${ex.memo ? '<span class="small">- ' + ex.memo + '</span>' : ''}</span>
+            <span><strong>${d.getUTCMonth() + 1}/${d.getUTCDate()}</strong> ${ex.category} ¥${ex.amount.toLocaleString()} ${ex.memo ? '<span class="small">- ' + ex.memo + '</span>' : ''}</span>
             <button class="delete-btn" onclick="deleteExpense(${idx})">削除</button>
         </div>`;
     }).join('');
     document.getElementById('expenseList').innerHTML = html;
 }
-function deleteExpense(idx) {
-    if (confirm('削除しますか？')) {
-        data[currentMonth].expenses.splice(idx, 1);
-        syncToFirestore();
+
+async function deleteExpense(idx) {
+    // 削除対象のインデックスはソート後のものなので、元の配列から見つける必要がある
+    const sortedExpenses = [...data[currentMonth].expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const targetExpense = sortedExpenses[idx];
+    const originalIndex = data[currentMonth].expenses.findIndex(ex => ex.date === targetExpense.date && ex.amount === targetExpense.amount && ex.category === targetExpense.category);
+
+    if (originalIndex === -1) {
+        alert("削除対象が見つかりませんでした。");
+        return;
+    }
+
+    if (confirm('この支出を削除しますか？')) {
+        data[currentMonth].expenses.splice(originalIndex, 1);
+        await syncToFirestore();
         updateExpenseList();
         updateDisplay();
     }
 }
-
 // ========== 月/週サマリー・進捗・レポート ==========
 function updateDisplay() {
     initializeMonth(currentMonth);
