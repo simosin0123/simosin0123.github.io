@@ -81,9 +81,8 @@
     </style>
 </head>
 <body>
-   <header>
-        <h1>💰 予算管理システム v3.0.1</h1>
-        <p>あなたの予算をスマートに管理しましょう</p>
+    <header>
+        <h1>💰 予算管理システム v3.0</h1>
     </header>
 
     <div id="authContainer">
@@ -393,8 +392,6 @@
     function updateHeader() {
         const range = getMonthRange(currentMonthKey);
         document.getElementById('currentMonth').textContent = `${range.start.getFullYear()}年 ${range.start.getMonth() + 1}月`;
-        document.getElementById('monthStartDayHeader').textContent = range.start.getDate();
-        document.getElementById('monthEndDayHeader').textContent = range.end.getDate();
     }
     
     function showSyncStatus(type, message) {
