@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>予算管理システム v3.10</title>
+    <title>予算管理システム v3.11 (最終調整版)</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -84,7 +84,7 @@
         .modal-overlay.show { display: flex; opacity: 1; }
         .modal-content { background: var(--surface-light); color: var(--text-light); padding: 30px; border-radius: 12px; box-shadow: 0 5px 25px rgba(0,0,0,0.2); width: 90%; max-width: 450px; text-align: center; transform: scale(0.95); transition: transform 0.3s; }
         .modal-overlay.show .modal-content { transform: scale(1); }
-        .modal-content h2 { margin-top: 0; }
+        .modal-content h2 { margin-top: 0; color: var(--text-light); }
         .modal-content p { margin: 15px 0; }
         .modal-buttons { display: flex; justify-content: center; gap: 15px; margin-top: 20px; }
         .modal-buttons button { margin-top: 0; }
@@ -101,13 +101,24 @@
         @media (prefers-color-scheme: dark) {
             body { background-color: var(--background-dark); color: var(--text-dark); }
             h2, h3, #currentMonth { color: var(--text-dark); }
-            .content, .month-selector, .tabs, .calendar-popup { background-color: var(--surface-dark); }
+            .content, .month-selector, .tabs { background-color: var(--surface-dark); }
             .card, .editable-item { background-color: #374151; border-color: var(--border-dark); }
             input, select { background-color: #374151; color: var(--text-dark); border-color: var(--border-dark); }
             .tab:not(.active) { background: var(--surface-dark); color: #9CA3AF; }
             .summary-table th, .summary-table td { border-color: var(--border-dark); }
             .progress-bar { background-color: var(--border-dark); }
             .progress-text { color: #9CA3AF; }
+
+            /* ▼▼▼【今回の修正箇所】▼▼▼ */
+            .modal-content {
+                background-color: var(--surface-dark);
+                color: var(--text-dark);
+            }
+            .modal-content h2 {
+                color: var(--text-dark);
+            }
+            /* ▲▲▲【今回の修正箇所】▲▲▲ */
+
             @media (max-width: 768px) {
                 .summary-table tr { border-color: var(--border-dark); }
                 .summary-table td:before { color: #9CA3AF; }
@@ -117,7 +128,7 @@
 </head>
 <body>
     <header>
-        <h1>💰 予算管理システム v3.10</h1>
+        <h1>💰 予算管理システム v3.11</h1>
         <p>あなたの予算をスマートに管理しましょう</p>
     </header>
 
@@ -142,49 +153,8 @@
     </div>
 
     <div id="mainApp" style="display: none;">
-        <div class="container">
-            <div style="text-align: right; margin-bottom: 10px;">
-                <span>ログイン中: <strong id="currentUser"></strong></span>
-                <button onclick="logout()" style="background: var(--secondary-color); padding: 8px 16px; margin-left: 10px; margin-top: 0;">ログアウト</button>
-            </div>
-            <div class="month-selector">
-                <button onclick="changeMonth(-1)">← 前月</button>
-                <span id="currentMonth"></span>
-                <button onclick="changeMonth(1)">次月 →</button>
-                <button onclick="goToToday()" style="background: var(--success-color);">今月へ</button>
-            </div>
-            <div class="tabs">
-                <button class="tab active" onclick="showTab('summaryTab')">📊 概要</button>
-                <button class="tab" onclick="showTab('incomeTab')">💵 収入</button>
-                <button class="tab" onclick="showTab('budgetTab')">📝 予算</button>
-                <button class="tab" onclick="showTab('expenseTab')">➕ 支出</button>
-                <button class="tab" onclick="showTab('analysisTab')">📈 分析</button>
-                <button class="tab" onclick="showTab('settingsTab')">⚙️ 設定</button>
-            </div>
-            
-            <div id="summaryTab" class="content active">
-                <h2>月次サマリー</h2>
-                <div class="grid"><div class="card"><h3>収入</h3><p>¥<span id="totalIncome">0</span></p></div><div class="card"><h3>予算合計</h3><p>¥<span id="totalBudget">0</span></p></div><div class="card"><h3>支出合計</h3><p>¥<span id="totalExpense">0</span></p></div><div class="card" id="remainingCard"><h3>残額</h3><p>¥<span id="remainingBudget">0</span></p></div></div>
-                <h3>カテゴリー別進捗</h3>
-                <table class="summary-table"><thead><tr><th>カテゴリー</th><th style="width: 40%;">進捗</th><th>支出 / 予算</th><th>残額</th></tr></thead><tbody id="categorySummary"></tbody></table>
-                <h3>今週の支出（カテゴリー別）</h3>
-                <table class="summary-table"><thead><tr><th>カテゴリー</th><th>今週の支出</th><th>先週との比較</th></tr></thead><tbody id="weeklyCategorySummary"></tbody></table>
-            </div>
-            <div id="incomeTab" class="content"><h2>収入設定</h2><div id="incomeItems" class="grid"></div><button onclick="addIncomeItem()">+ 収入項目を追加</button></div>
-            <div id="budgetTab" class="content">
-                <h2>予算設定</h2>
-                <h3>貯蓄・投資</h3><div id="savingsItems" class="grid"></div><button onclick="addBudgetItem('savings')">+ 貯蓄項目を追加</button>
-                <h3 style="margin-top: 20px;">固定費</h3><div id="fixedCostItems" class="grid"></div><button onclick="addBudgetItem('fixed')">+ 固定費を追加</button>
-                <h3 style="margin-top: 20px;">変動費</h3><div id="variableCostItems" class="grid"></div><button onclick="addBudgetItem('variable')">+ 変動費を追加</button>
-            </div>
-            <div id="expenseTab" class="content"><h2>支出入力</h2><div class="card"><div class="input-group"><label>日付</label><div class="calendar-input"><input type="text" id="expenseDate" readonly placeholder="クリックして日付を選択" onclick="toggleCalendar()"><div id="calendarPopup" class="calendar-popup"><div class="calendar-header"><button onclick="changeCalendarMonth(-1)">←</button><span id="calendarMonthLabel"></span><button onclick="changeCalendarMonth(1)">→</button></div><div class="calendar-grid" id="calendarWeekdays"></div><div class="calendar-grid" id="calendarGrid"></div></div></div></div><div class="input-group"><label>カテゴリー</label><select id="expenseCategory"></select></div><div class="input-group"><label>金額</label><input type="number" id="expenseAmount" placeholder="0"></div><div class="input-group"><label>メモ</label><input type="text" id="expenseMemo"></div><button onclick="addExpense(event)">支出を追加</button></div><h3 style="margin-top: 30px;">今月の支出一覧</h3><div id="expenseList" class="expense-list"></div></div>
-            <div id="analysisTab" class="content"><h2>📈 分析</h2><div class="card"><h3>先月との支出比較</h3><p>カテゴリーごとの支出額を先月のデータと比較します。</p><div style="margin-top: 20px; height: 400px; position: relative;"><canvas id="comparisonChart"></canvas></div></div><div class="card" style="margin-top:20px;"><h3>データのエクスポート</h3><button onclick="exportCSV()">📊 CSVエクスポート</button></div></div>
-            <div id="settingsTab" class="content"><h2>⚙️ 設定</h2><div class="settings-section card"><h3>月の開始日設定</h3><p>月の区切りとなる開始日を1〜28の間で設定できます。変更を適用すると、すべての支出データが新しい区切りに基づいて再計算されます。</p><div class="input-group" style="display: flex; align-items: center; gap: 10px;"><input type="number" id="monthStartDayInput" min="1" max="28" style="flex: 1; margin-top:0;"><button onclick="applyNewMonthStartDay()" style="flex-shrink: 0; margin-top:0;">変更を適用</button></div><p>現在の設定: <strong id="currentStartDayLabel">15</strong>日</p></div><div class="settings-section card" style="margin-top:20px;"><h3>全データリセット</h3><p>すべてのデータを削除します。この操作は元に戻せません。</p><button onclick="resetAllData()" class="delete-btn">🗑️ 全データ削除</button></div></div>
         </div>
-    </div>
     
-    <div id="syncStatus" class="sync-status"></div>
-
     <div id="modalContainer" class="modal-overlay">
         <div class="modal-content">
             <h2 id="modalTitle"></h2>
