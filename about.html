@@ -3,7 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>予算管理システム v3.8 (Migration Ready)</title>
+    <title>予算管理システム v3.10 </title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
     
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -20,12 +24,17 @@
             --success-fill: #10B981;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: var(--background-light); color: var(--text-light); line-height: 1.6; font-size: 16px; transition: background-color 0.3s, color 0.3s; }
+        body {
+            font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--background-light); color: var(--text-light);
+            line-height: 1.6; font-size: 16px; transition: background-color 0.3s, color 0.3s;
+        }
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
         header { background: linear-gradient(135deg, var(--primary-color) 0%, #7C3AED 100%); color: white; padding: 30px 0; text-align: center; }
-        h1 { font-size: 2.5em; margin-bottom: 10px; font-weight: 700; }
+        h1 { font-size: 2.5em; font-weight: 700; }
         h2 { color: var(--text-light); font-weight: 700; margin-bottom: 20px; }
         h3 { color: #374151; font-weight: 600; margin-bottom: 15px; margin-top: 30px;}
+        button, input, select { font-family: 'Noto Sans JP', sans-serif; }
         .month-selector { margin: 20px 0; text-align: center; background: var(--surface-light); padding: 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .month-selector button { background: var(--primary-color); color: white; border: none; padding: 10px 20px; margin: 0 10px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 500; transition: all 0.2s; }
         #currentMonth { font-size: 1.2em; font-weight: 700; color: var(--text-light); margin: 0 20px; }
@@ -41,6 +50,7 @@
         input, select { width: 100%; padding: 10px 12px; border: 2px solid var(--border-light); border-radius: 6px; font-size: 16px; background: var(--surface-light); color: var(--text-light); }
         button { background: var(--primary-color); color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: 600; transition: all 0.2s; margin-top: 10px; }
         button:hover { background: var(--primary-hover); }
+        button:active { transform: scale(0.98); }
         .delete-btn { background: var(--danger-color); }
         .editable-item { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 10px; background: #F3F4F6; border-radius: 6px; }
         .summary-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -59,15 +69,34 @@
         .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
         .calendar-day, .calendar-weekday { padding: 8px; text-align: center; cursor: pointer; border-radius: 50%; }
         .calendar-weekday { cursor: default; font-weight: bold; color: #9CA3AF; }
-        .sync-status { position: fixed; bottom: 20px; right: 20px; padding: 10px 20px; color: white; border-radius: 6px; font-size: 14px; z-index: 1000; transition: opacity 0.3s, transform 0.3s; opacity: 0; transform: translateY(10px); pointer-events: none; }
+        .sync-status { position: fixed; bottom: 20px; right: 20px; padding: 10px 20px; color: white; border-radius: 6px; font-size: 14px; z-index: 2000; transition: opacity 0.3s, transform 0.3s; opacity: 0; transform: translateY(10px); pointer-events: none; }
         .sync-status.show { opacity: 1; transform: translateY(0); }
         .sync-status.success { background: var(--success-color); }
         .sync-status.error { background: var(--danger-color); }
         .sync-status.syncing { background: var(--secondary-color); }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .card, .editable-item, .expense-item { animation: fadeInUp 0.5s ease-out forwards; opacity: 0; }
+        .card:nth-child(1), .editable-item:nth-child(1), .expense-item:nth-child(1) { animation-delay: 0.05s; }
+        .card:nth-child(2), .editable-item:nth-child(2), .expense-item:nth-child(2) { animation-delay: 0.1s; }
+        .card:nth-child(3), .editable-item:nth-child(3), .expense-item:nth-child(3) { animation-delay: 0.15s; }
+        .card:nth-child(4), .editable-item:nth-child(4), .expense-item:nth-child(4) { animation-delay: 0.2s; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px); display: none; justify-content: center; align-items: center; z-index: 2000; opacity: 0; transition: opacity 0.3s; }
+        .modal-overlay.show { display: flex; opacity: 1; }
+        .modal-content { background: var(--surface-light); color: var(--text-light); padding: 30px; border-radius: 12px; box-shadow: 0 5px 25px rgba(0,0,0,0.2); width: 90%; max-width: 450px; text-align: center; transform: scale(0.95); transition: transform 0.3s; }
+        .modal-overlay.show .modal-content { transform: scale(1); }
+        .modal-content h2 { margin-top: 0; }
+        .modal-content p { margin: 15px 0; }
+        .modal-buttons { display: flex; justify-content: center; gap: 15px; margin-top: 20px; }
+        .modal-buttons button { margin-top: 0; }
+        
         @media (max-width: 768px) {
             .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
             .tabs::-webkit-scrollbar { display: none; }
             .tab { flex: 0 0 auto; padding: 15px 20px; }
+            .summary-table thead { display: none; }
+            .summary-table tr { display: block; border: 1px solid var(--border-light); border-radius: 8px; margin-bottom: 15px; padding: 15px; }
+            .summary-table td { display: flex; justify-content: space-between; align-items: center; border-bottom: none; padding: 8px 0; }
+            .summary-table td:before { content: attr(data-label); font-weight: 600; color: #6B7280; }
         }
         @media (prefers-color-scheme: dark) {
             body { background-color: var(--background-dark); color: var(--text-dark); }
@@ -79,12 +108,16 @@
             .summary-table th, .summary-table td { border-color: var(--border-dark); }
             .progress-bar { background-color: var(--border-dark); }
             .progress-text { color: #9CA3AF; }
+            @media (max-width: 768px) {
+                .summary-table tr { border-color: var(--border-dark); }
+                .summary-table td:before { color: #9CA3AF; }
+            }
         }
     </style>
 </head>
 <body>
     <header>
-        <h1>💰 予算管理システム v3.8</h1>
+        <h1>💰 予算管理システム v3.10</h1>
         <p>あなたの予算をスマートに管理しましょう</p>
     </header>
 
@@ -149,7 +182,16 @@
             <div id="settingsTab" class="content"><h2>⚙️ 設定</h2><div class="settings-section card"><h3>月の開始日設定</h3><p>月の区切りとなる開始日を1〜28の間で設定できます。変更を適用すると、すべての支出データが新しい区切りに基づいて再計算されます。</p><div class="input-group" style="display: flex; align-items: center; gap: 10px;"><input type="number" id="monthStartDayInput" min="1" max="28" style="flex: 1; margin-top:0;"><button onclick="applyNewMonthStartDay()" style="flex-shrink: 0; margin-top:0;">変更を適用</button></div><p>現在の設定: <strong id="currentStartDayLabel">15</strong>日</p></div><div class="settings-section card" style="margin-top:20px;"><h3>全データリセット</h3><p>すべてのデータを削除します。この操作は元に戻せません。</p><button onclick="resetAllData()" class="delete-btn">🗑️ 全データ削除</button></div></div>
         </div>
     </div>
+    
     <div id="syncStatus" class="sync-status"></div>
+
+    <div id="modalContainer" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="modalTitle"></h2>
+            <p id="modalMessage"></p>
+            <div id="modalButtons"></div>
+        </div>
+    </div>
 
 <script>
     const firebaseConfig = {
@@ -184,7 +226,6 @@
     function runMigrations(userData) {
         const currentVersion = userData.schemaVersion || 1;
         let needsUpdate = false;
-
         if (currentVersion < 2) {
             console.log("データスキーマをv1からv2へマイグレーションします...");
             Object.keys(userData).forEach(key => {
@@ -198,11 +239,9 @@
                 }
             });
         }
-
         userData.schemaVersion = LATEST_SCHEMA_VERSION;
         return { migratedData: userData, needsUpdate };
     }
-
 
     // ==================================
     // 3. 認証関連
@@ -213,22 +252,17 @@
             currentUser = user;
             userUid = user.uid;
             document.getElementById('currentUser').textContent = user.email.split('@')[0];
-            
             unsubscribe = db.collection("budgets").doc(userUid).onSnapshot(doc => {
                 let rawData = doc.exists ? doc.data() : {};
-                
                 const { migratedData, needsUpdate } = runMigrations(rawData);
                 data = migratedData;
-
                 if (needsUpdate || !doc.exists) {
                     if (!doc.exists) initializeMonth(getMonthKey(new Date()));
                     syncToFirestore();
-                } else {
-                    currentMonthKey = localStorage.getItem(LOCAL_MONTH_KEY) || getMonthKey(new Date());
-                    fullUpdateUI();
                 }
+                currentMonthKey = localStorage.getItem(LOCAL_MONTH_KEY) || getMonthKey(new Date());
+                fullUpdateUI();
             }, error => console.error("リスナーエラー:", error));
-            
             document.getElementById('authContainer').style.display = 'none';
             document.getElementById('mainApp').style.display = 'block';
         } else {
@@ -242,20 +276,18 @@
     function login() {
         const email = document.getElementById('loginEmail').value;
         const password = document.getElementById('loginPassword').value;
-        auth.signInWithEmailAndPassword(email, password).catch(err => alert("ログインエラー: " + err.message));
+        auth.signInWithEmailAndPassword(email, password).catch(err => showModal('ログインエラー', err.message));
     }
 
     function register() {
         const email = document.getElementById('registerEmail').value;
         const password = document.getElementById('registerPassword').value;
         const confirm = document.getElementById('registerPasswordConfirm').value;
-        if (password !== confirm) return alert("パスワードが一致しません。");
-        auth.createUserWithEmailAndPassword(email, password).catch(err => alert("登録エラー: " + err.message));
+        if (password !== confirm) return showModal('入力エラー', 'パスワードが一致しません。');
+        auth.createUserWithEmailAndPassword(email, password).catch(err => showModal('登録エラー', err.message));
     }
 
-    function logout() {
-        auth.signOut();
-    }
+    function logout() { auth.signOut(); }
 
     function showLogin() {
         document.getElementById('loginScreen').style.display = 'block';
@@ -275,11 +307,7 @@
             data[key] = {
                 income: [{ name: "アルバイト", amount: 120000 }],
                 budget: {
-                    savings: [
-                        { name: "積立NISA", amount: 33000 },
-                        { name: "海外旅行", amount: 10000 },
-                        { name: "カメラ積立", amount: 5000 }
-                    ],
+                    savings: [ { name: "積立NISA", amount: 33000 }, { name: "海外旅行", amount: 10000 }, { name: "カメラ積立", amount: 5000 } ],
                     fixed: [{ name: "家賃", amount: 50000 }, { name: "通信費", amount: 5000 }],
                     variable: [{ name: "食費", amount: 30000 }, { name: "交際費", amount: 15000 }]
                 },
@@ -320,7 +348,6 @@
         if (!currentUser || !currentMonthKey) return;
         initializeMonth(currentMonthKey);
         if (!data[currentMonthKey]) return;
-
         updateHeader();
         updateDisplay();
         renderIncomeList();
@@ -329,7 +356,6 @@
         updateExpenseList();
         updateSettingsDisplay();
         updateWeeklyCategorySummary();
-        
         if (document.getElementById('analysisTab').classList.contains('active')) {
              renderComparisonChart();
         }
@@ -338,15 +364,11 @@
     function updateDisplay() {
         const monthData = data[currentMonthKey];
         if (!monthData) return;
-        
         const totalIncome = monthData.income.reduce((s, i) => s + i.amount, 0);
-        
         const allBudgets = Object.values(monthData.budget).flat();
         const totalBudget = allBudgets.reduce((s, b) => s + b.amount, 0);
-
         const totalExpense = monthData.expenses.reduce((s, i) => s + i.amount, 0);
         const remainingBudget = totalIncome - totalExpense;
-        
         document.getElementById('totalIncome').textContent = totalIncome.toLocaleString();
         document.getElementById('totalBudget').textContent = totalBudget.toLocaleString();
         document.getElementById('totalExpense').textContent = totalExpense.toLocaleString();
@@ -355,17 +377,15 @@
         
         const categorySummaryBody = document.getElementById('categorySummary');
         categorySummaryBody.innerHTML = '';
-
         const renderCategoryRows = (categoryArray) => {
             if (!categoryArray) return;
             categoryArray.forEach(cat => {
                 const catExpense = monthData.expenses.filter(ex => ex.category === cat.name).reduce((sum, ex) => sum + ex.amount, 0);
                 const catRemaining = cat.amount - catExpense;
                 const progress = cat.amount > 0 ? (catExpense / cat.amount) * 100 : (catExpense > 0 ? 100 : 0);
-                categorySummaryBody.innerHTML += `<tr><td><strong>${cat.name}</strong></td><td><div class="progress-bar-container"><div class="progress-bar"><div class="progress-fill ${progress >= 100 ? 'over-budget' : ''}" style="width: ${Math.min(progress, 100)}%;"></div></div><span class="progress-text">${progress.toFixed(1)}%</span></div></td><td>¥${catExpense.toLocaleString()} / ¥${cat.amount.toLocaleString()}</td><td>¥${catRemaining.toLocaleString()}</td></tr>`;
+                categorySummaryBody.innerHTML += `<tr><td data-label="カテゴリー"><strong>${cat.name}</strong></td><td data-label="進捗"><div class="progress-bar-container"><div class="progress-bar"><div class="progress-fill ${progress >= 100 ? 'over-budget' : ''}" style="width: ${Math.min(progress, 100)}%;"></div></div><span class="progress-text">${progress.toFixed(1)}%</span></div></td><td data-label="支出 / 予算">¥${catExpense.toLocaleString()} / ¥${cat.amount.toLocaleString()}</td><td data-label="残額">¥${catRemaining.toLocaleString()}</td></tr>`;
             });
         };
-
         renderCategoryRows(monthData.budget.savings);
         renderCategoryRows(monthData.budget.fixed);
         renderCategoryRows(monthData.budget.variable);
@@ -375,7 +395,6 @@
         const weeklySummaryBody = document.getElementById('weeklyCategorySummary');
         weeklySummaryBody.innerHTML = '';
         if (!data[currentMonthKey] || !data[currentMonthKey].expenses) return;
-        
         const today = new Date();
         const thisBudgetMonthKey = getMonthKey(today);
         if(currentMonthKey !== thisBudgetMonthKey){
@@ -383,7 +402,6 @@
             return;
         }
         const thisWeekNumber = getWeekNumber(today);
-        
         const processWeekData = (weekNum) => {
             const totals = {};
             if (weekNum < 1) return totals;
@@ -396,13 +414,11 @@
         };
         const currentWeekTotals = processWeekData(thisWeekNumber);
         const prevWeekTotals = processWeekData(thisWeekNumber - 1);
-        
         const labels = [...new Set([...Object.keys(currentWeekTotals), ...Object.keys(prevWeekTotals)])];
         if(labels.length === 0){
              weeklySummaryBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#9CA3AF;">今週と先週の支出データはありません。</td></tr>`;
             return;
         }
-
         labels.forEach(category => {
             const currentAmount = currentWeekTotals[category] || 0;
             const prevAmount = prevWeekTotals[category] || 0;
@@ -422,7 +438,7 @@
                 comparisonClass = 'comparison-increase';
                 comparisonHTML = '↑ (新規)';
             }
-            weeklySummaryBody.innerHTML += `<tr><td><strong>${category}</strong></td><td>¥${currentAmount.toLocaleString()}</td><td class="${comparisonClass}">${comparisonHTML}</td></tr>`;
+            weeklySummaryBody.innerHTML += `<tr><td data-label="カテゴリー"><strong>${category}</strong></td><td data-label="今週の支出">¥${currentAmount.toLocaleString()}</td><td data-label="先週との比較" class="${comparisonClass}">${comparisonHTML}</td></tr>`;
         });
     }
 
@@ -506,10 +522,16 @@
         syncToFirestore();
     }
     function deleteItem(itemType, index) {
-        if(confirm('この項目を削除しますか？')) { data[currentMonthKey][itemType].splice(index, 1); syncToFirestore(); }
+        showModal('確認', `この${itemType === 'income' ? '収入' : '予算'}項目を削除しますか？`, [
+            { text: '削除', class: 'danger', onClick: () => { data[currentMonthKey][itemType].splice(index, 1); syncToFirestore(); hideModal(); }},
+            { text: 'キャンセル', class: 'secondary', onClick: hideModal }
+        ]);
     }
     function deleteBudgetItem(type, index) {
-        if(confirm('この項目を削除しますか？')) { data[currentMonthKey].budget[type].splice(index, 1); syncToFirestore(); }
+        showModal('確認', 'この予算項目を削除しますか？', [
+            { text: '削除', class: 'danger', onClick: () => { data[currentMonthKey].budget[type].splice(index, 1); syncToFirestore(); hideModal(); }},
+            { text: 'キャンセル', class: 'secondary', onClick: hideModal }
+        ]);
     }
     function renderExpenseCategoryOptions() {
         const select = document.getElementById('expenseCategory');
@@ -520,9 +542,9 @@
     function addExpense(event) {
         const btn = event.target;
         const dateStr = document.getElementById('expenseDate').value;
-        if (!dateStr) return alert('日付を選択してください。');
+        if (!dateStr) return showModal('入力エラー', '日付を選択してください。');
         const amount = Number(document.getElementById('expenseAmount').value);
-        if (!amount) return alert('金額は必須です。');
+        if (!amount) return showModal('入力エラー', '金額は必須です。');
         btn.disabled = true;
         const category = document.getElementById('expenseCategory').value;
         const memo = document.getElementById('expenseMemo').value;
@@ -537,7 +559,10 @@
         });
     }
     function deleteExpense(index) {
-        if (confirm('この支出を削除しますか？')) { data[currentMonthKey].expenses.splice(index, 1); syncToFirestore(); }
+        showModal('確認', 'この支出を削除しますか？', [
+            { text: '削除', class: 'danger', onClick: () => { data[currentMonthKey].expenses.splice(index, 1); syncToFirestore(); hideModal(); }},
+            { text: 'キャンセル', class: 'secondary', onClick: hideModal }
+        ]);
     }
 
     // ==================================
@@ -591,28 +616,35 @@
     }
     function applyNewMonthStartDay() {
         const newStartDay = parseInt(document.getElementById('monthStartDayInput').value);
-        if (isNaN(newStartDay) || newStartDay < 1 || newStartDay > 28) return alert('1〜28の有効な数字を入力してください。');
-        if (newStartDay === getMonthStartDay()) return alert('現在の設定と同じです。');
-        if (!confirm(`月の開始日を「${newStartDay}日」に変更しますか？\n\n警告：すべての支出データが再計算されます。この操作は元に戻せません。`)) return;
+        if (isNaN(newStartDay) || newStartDay < 1 || newStartDay > 28) return showModal('入力エラー','1〜28の有効な数字を入力してください。');
+        if (newStartDay === getMonthStartDay()) return showModal('情報','現在の設定と同じです。');
         
-        const allExpenses = Object.values(data).flatMap(monthData => monthData.expenses || []);
-        Object.keys(data).forEach(key => { if(data[key] && data[key].expenses) data[key].expenses = []; });
-        localStorage.setItem(LOCAL_STARTDAY_KEY, newStartDay);
-
-        allExpenses.forEach(expense => {
-            const newKey = getMonthKey(new Date(expense.date));
-            initializeMonth(newKey);
-            data[newKey].expenses.push(expense);
-        });
-        syncToFirestore().then(() => {
-            currentMonthKey = getMonthKey(new Date());
-            localStorage.setItem(LOCAL_MONTH_KEY, currentMonthKey);
-            fullUpdateUI();
-            alert('月の開始日を変更し、データを再計算しました。');
-        });
+        showModal('最終確認', `月の開始日を「${newStartDay}日」に変更しますか？\n警告：すべての支出データが再計算されます。この操作は元に戻せません。`,[
+            {text: '変更して再計算', class: 'danger', onClick: () => {
+                const allExpenses = Object.values(data).flatMap(monthData => monthData.expenses || []);
+                Object.keys(data).forEach(key => { if(data[key] && data[key].expenses) data[key].expenses = []; });
+                localStorage.setItem(LOCAL_STARTDAY_KEY, newStartDay);
+                allExpenses.forEach(expense => {
+                    const newKey = getMonthKey(new Date(expense.date));
+                    initializeMonth(newKey);
+                    data[newKey].expenses.push(expense);
+                });
+                syncToFirestore().then(() => {
+                    currentMonthKey = getMonthKey(new Date());
+                    localStorage.setItem(LOCAL_MONTH_KEY, currentMonthKey);
+                    fullUpdateUI();
+                    showModal('完了', '月の開始日を変更し、すべてのデータを再計算しました。');
+                });
+                hideModal();
+            }},
+            {text: 'キャンセル', class: 'secondary', onClick: hideModal }
+        ]);
     }
     function resetAllData() {
-        if (confirm('本当にすべてのデータを削除しますか？元に戻せません。')) { data = {}; syncToFirestore(); }
+        showModal('全データリセット', '本当にすべてのデータを削除しますか？この操作は元に戻せません。', [
+            {text: 'すべて削除', class: 'danger', onClick: () => { data = {}; syncToFirestore(); hideModal(); }},
+            {text: 'キャンセル', class: 'secondary', onClick: hideModal }
+        ]);
     }
 
     // ==================================
@@ -623,13 +655,11 @@
         const ctx = document.getElementById('comparisonChart')?.getContext('2d');
         if (!ctx) return;
         if (comparisonChartInstance) comparisonChartInstance.destroy();
-
         const currentMonthData = data[currentMonthKey] || { expenses: [] };
         const [year, month] = currentMonthKey.split('-').map(Number);
         const prevMonthKey = getMonthKey(new Date(year, month - 2, getMonthStartDay()));
         initializeMonth(prevMonthKey);
         const prevMonthData = data[prevMonthKey] || { expenses: [] };
-
         const processData = (expenses) => {
             const totals = {};
             if(expenses) expenses.forEach(ex => { totals[ex.category] = (totals[ex.category] || 0) + ex.amount; });
@@ -638,7 +668,6 @@
         const currentTotals = processData(currentMonthData.expenses);
         const prevTotals = processData(prevMonthData.expenses);
         const labels = [...new Set([...Object.keys(currentTotals), ...Object.keys(prevTotals)])];
-        
         comparisonChartInstance = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -653,7 +682,7 @@
     }
     function exportCSV() {
         const expenses = data[currentMonthKey]?.expenses;
-        if (!expenses || expenses.length === 0) return alert('エクスポートするデータがありません。');
+        if (!expenses || expenses.length === 0) return showModal('情報','エクスポートするデータがありません。');
         let csvContent = "data:text/csv;charset=utf-8,日付,カテゴリー,金額,メモ\n";
         expenses.forEach(ex => {
             csvContent += [new Date(ex.date).toLocaleDateString(), ex.category, ex.amount, `"${ex.memo || ''}"`].join(',') + "\r\n";
@@ -665,7 +694,33 @@
     }
     
     // ==================================
-    // 10. ヘルパー関数と初期化
+    // 10. 新機能：カスタムモーダル
+    // ==================================
+    function showModal(title, message, buttons = [{ text: 'OK', onClick: hideModal }]) {
+        document.getElementById('modalTitle').textContent = title;
+        document.getElementById('modalMessage').textContent = message.replace(/\n/g, '<br>'); // 改行を<br>に変換
+        const buttonsContainer = document.getElementById('modalButtons');
+        buttonsContainer.innerHTML = '';
+        buttons.forEach(btnInfo => {
+            const button = document.createElement('button');
+            button.textContent = btnInfo.text;
+            button.onclick = btnInfo.onClick;
+            if (btnInfo.class === 'danger') button.style.backgroundColor = 'var(--danger-color)';
+            if (btnInfo.class === 'secondary') button.style.backgroundColor = 'var(--secondary-color)';
+            buttonsContainer.appendChild(button);
+        });
+        const modalOverlay = document.getElementById('modalContainer');
+        modalOverlay.style.display = 'flex';
+        setTimeout(() => modalOverlay.classList.add('show'), 10);
+    }
+    function hideModal() {
+        const modalOverlay = document.getElementById('modalContainer');
+        modalOverlay.classList.remove('show');
+        setTimeout(() => modalOverlay.style.display = 'none', 300);
+    }
+
+    // ==================================
+    // 11. ヘルパー関数と初期化
     // ==================================
     function getMonthStartDay() { return parseInt(localStorage.getItem(LOCAL_STARTDAY_KEY) || "15"); }
     function getMonthKey(date) {
