@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>予算管理システム v3.6</title>
+    <title>予算管理システム v3.8 (Migration Ready)</title>
     
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -84,7 +84,7 @@
 </head>
 <body>
     <header>
-        <h1>💰 予算管理システム v3.6</h1>
+        <h1>💰 予算管理システム v3.8</h1>
         <p>あなたの予算をスマートに管理しましょう</p>
     </header>
 
@@ -176,9 +176,36 @@
     let comparisonChartInstance = null;
     const LOCAL_STARTDAY_KEY = "budgetAppStartDay";
     const LOCAL_MONTH_KEY = "budgetAppLastMonth";
+    const LATEST_SCHEMA_VERSION = 2;
 
     // ==================================
-    // 2. 認証関連
+    // 2. データマイグレーション機能
+    // ==================================
+    function runMigrations(userData) {
+        const currentVersion = userData.schemaVersion || 1;
+        let needsUpdate = false;
+
+        if (currentVersion < 2) {
+            console.log("データスキーマをv1からv2へマイグレーションします...");
+            Object.keys(userData).forEach(key => {
+                if (key.match(/^\d{4}-\d{2}$/) && userData[key].budget && !userData[key].budget.savings) {
+                    userData[key].budget.savings = [
+                        { name: "積立NISA", amount: 33000 },
+                        { name: "海外旅行", amount: 10000 },
+                        { name: "カメラ積立", amount: 5000 }
+                    ];
+                    needsUpdate = true;
+                }
+            });
+        }
+
+        userData.schemaVersion = LATEST_SCHEMA_VERSION;
+        return { migratedData: userData, needsUpdate };
+    }
+
+
+    // ==================================
+    // 3. 認証関連
     // ==================================
     auth.onAuthStateChanged(user => {
         if (unsubscribe) unsubscribe();
@@ -186,16 +213,22 @@
             currentUser = user;
             userUid = user.uid;
             document.getElementById('currentUser').textContent = user.email.split('@')[0];
+            
             unsubscribe = db.collection("budgets").doc(userUid).onSnapshot(doc => {
-                data = doc.exists ? doc.data() : {};
-                if (!doc.exists) {
-                    initializeMonth(getMonthKey(new Date()));
+                let rawData = doc.exists ? doc.data() : {};
+                
+                const { migratedData, needsUpdate } = runMigrations(rawData);
+                data = migratedData;
+
+                if (needsUpdate || !doc.exists) {
+                    if (!doc.exists) initializeMonth(getMonthKey(new Date()));
+                    syncToFirestore();
                 } else {
-                    Object.keys(data).forEach(key => initializeMonth(key) );
+                    currentMonthKey = localStorage.getItem(LOCAL_MONTH_KEY) || getMonthKey(new Date());
+                    fullUpdateUI();
                 }
-                currentMonthKey = localStorage.getItem(LOCAL_MONTH_KEY) || getMonthKey(new Date());
-                fullUpdateUI();
             }, error => console.error("リスナーエラー:", error));
+            
             document.getElementById('authContainer').style.display = 'none';
             document.getElementById('mainApp').style.display = 'block';
         } else {
@@ -205,11 +238,13 @@
             showLogin();
         }
     });
+
     function login() {
         const email = document.getElementById('loginEmail').value;
         const password = document.getElementById('loginPassword').value;
         auth.signInWithEmailAndPassword(email, password).catch(err => alert("ログインエラー: " + err.message));
     }
+
     function register() {
         const email = document.getElementById('registerEmail').value;
         const password = document.getElementById('registerPassword').value;
@@ -217,21 +252,25 @@
         if (password !== confirm) return alert("パスワードが一致しません。");
         auth.createUserWithEmailAndPassword(email, password).catch(err => alert("登録エラー: " + err.message));
     }
-    function logout() { auth.signOut(); }
+
+    function logout() {
+        auth.signOut();
+    }
+
     function showLogin() {
         document.getElementById('loginScreen').style.display = 'block';
         document.getElementById('registerScreen').style.display = 'none';
     }
+
     function showRegister() {
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('registerScreen').style.display = 'block';
     }
 
     // ==================================
-    // 3. データ操作と同期
+    // 4. データ操作と同期
     // ==================================
     function initializeMonth(key) {
-        let needsUpdate = false;
         if (!data[key]) {
             data[key] = {
                 income: [{ name: "アルバイト", amount: 120000 }],
@@ -246,19 +285,12 @@
                 },
                 expenses: []
             };
-            needsUpdate = true;
-        } else {
-            if (!data[key].budget.savings) {
-                data[key].budget.savings = [
-                    { name: "積立NISA", amount: 33000 },
-                    { name: "海外旅行", amount: 10000 },
-                    { name: "カメラ積立", amount: 5000 }
-                ];
-                needsUpdate = true;
+            if (!data.schemaVersion) {
+                data.schemaVersion = LATEST_SCHEMA_VERSION;
             }
         }
-        if (needsUpdate) syncToFirestore();
     }
+
     async function syncToFirestore() {
         if (!userUid) return;
         showSyncStatus('syncing', '同期中...');
@@ -272,7 +304,7 @@
     }
 
     // ==================================
-    // 4. UI更新と表示ロジック
+    // 5. UI更新と表示ロジック
     // ==================================
     function showTab(tabId) {
         document.querySelectorAll('.content').forEach(el => el.classList.remove('active'));
@@ -283,6 +315,7 @@
             setTimeout(renderComparisonChart, 50);
         }
     }
+
     function fullUpdateUI() {
         if (!currentUser || !currentMonthKey) return;
         initializeMonth(currentMonthKey);
@@ -301,13 +334,19 @@
              renderComparisonChart();
         }
     }
+
     function updateDisplay() {
         const monthData = data[currentMonthKey];
+        if (!monthData) return;
+        
         const totalIncome = monthData.income.reduce((s, i) => s + i.amount, 0);
+        
         const allBudgets = Object.values(monthData.budget).flat();
-        const totalBudget = allBudgets.reduce((s, i) => s + i.amount, 0);
+        const totalBudget = allBudgets.reduce((s, b) => s + b.amount, 0);
+
         const totalExpense = monthData.expenses.reduce((s, i) => s + i.amount, 0);
         const remainingBudget = totalIncome - totalExpense;
+        
         document.getElementById('totalIncome').textContent = totalIncome.toLocaleString();
         document.getElementById('totalBudget').textContent = totalBudget.toLocaleString();
         document.getElementById('totalExpense').textContent = totalExpense.toLocaleString();
@@ -317,20 +356,21 @@
         const categorySummaryBody = document.getElementById('categorySummary');
         categorySummaryBody.innerHTML = '';
 
-        const budgetCategories = Object.values(monthData.budget).flat();
-        const expenseCategoryNames = [...new Set(monthData.expenses.map(ex => ex.category))];
-        const allCategoryNames = [...new Set([...budgetCategories.map(b => b.name), ...expenseCategoryNames])];
-        
-        allCategoryNames.forEach(catName => {
-            const budgetItem = budgetCategories.find(b => b.name === catName);
-            const budgetAmount = budgetItem ? budgetItem.amount : 0;
-            const catExpense = monthData.expenses.filter(ex => ex.category === catName).reduce((sum, ex) => sum + ex.amount, 0);
-            const catRemaining = budgetAmount - catExpense;
-            const progress = budgetAmount > 0 ? (catExpense / budgetAmount) * 100 : (catExpense > 0 ? 100 : 0);
-            
-            categorySummaryBody.innerHTML += `<tr><td><strong>${catName}</strong></td><td><div class="progress-bar-container"><div class="progress-bar"><div class="progress-fill ${progress >= 100 ? 'over-budget' : ''}" style="width: ${Math.min(progress, 100)}%;"></div></div><span class="progress-text">${progress.toFixed(1)}%</span></div></td><td>¥${catExpense.toLocaleString()} / ¥${budgetAmount.toLocaleString()}</td><td>¥${catRemaining.toLocaleString()}</td></tr>`;
-        });
+        const renderCategoryRows = (categoryArray) => {
+            if (!categoryArray) return;
+            categoryArray.forEach(cat => {
+                const catExpense = monthData.expenses.filter(ex => ex.category === cat.name).reduce((sum, ex) => sum + ex.amount, 0);
+                const catRemaining = cat.amount - catExpense;
+                const progress = cat.amount > 0 ? (catExpense / cat.amount) * 100 : (catExpense > 0 ? 100 : 0);
+                categorySummaryBody.innerHTML += `<tr><td><strong>${cat.name}</strong></td><td><div class="progress-bar-container"><div class="progress-bar"><div class="progress-fill ${progress >= 100 ? 'over-budget' : ''}" style="width: ${Math.min(progress, 100)}%;"></div></div><span class="progress-text">${progress.toFixed(1)}%</span></div></td><td>¥${catExpense.toLocaleString()} / ¥${cat.amount.toLocaleString()}</td><td>¥${catRemaining.toLocaleString()}</td></tr>`;
+            });
+        };
+
+        renderCategoryRows(monthData.budget.savings);
+        renderCategoryRows(monthData.budget.fixed);
+        renderCategoryRows(monthData.budget.variable);
     }
+    
     function updateWeeklyCategorySummary() {
         const weeklySummaryBody = document.getElementById('weeklyCategorySummary');
         weeklySummaryBody.innerHTML = '';
@@ -368,7 +408,6 @@
             const prevAmount = prevWeekTotals[category] || 0;
             let comparisonHTML = '-';
             let comparisonClass = '';
-
             if (prevAmount > 0) {
                 const diff = currentAmount - prevAmount;
                 const percent = (diff / prevAmount) * 100;
@@ -386,37 +425,44 @@
             weeklySummaryBody.innerHTML += `<tr><td><strong>${category}</strong></td><td>¥${currentAmount.toLocaleString()}</td><td class="${comparisonClass}">${comparisonHTML}</td></tr>`;
         });
     }
+
     function renderIncomeList() {
         const container = document.getElementById('incomeItems');
         container.innerHTML = '';
+        if(!data[currentMonthKey] || !data[currentMonthKey].income) return;
         data[currentMonthKey].income.forEach((item, index) => {
             container.innerHTML += `<div class="editable-item"><input type="text" value="${item.name}" onchange="updateItem('income', ${index}, 'name', this.value)"><input type="number" value="${item.amount}" onchange="updateItem('income', ${index}, 'amount', this.value)"><button class="delete-btn" onclick="deleteItem('income', ${index})">削除</button></div>`;
         });
     }
+
     function renderBudgetList() {
         ['savings', 'fixed', 'variable'].forEach(type => {
-            const containerId = type === 'fixed' ? 'fixedCostItems' : type === 'variable' ? 'variableCostItems' : 'savingsItems';
+            const containerId = type === 'savings' ? 'savingsItems' : type === 'fixed' ? 'fixedCostItems' : 'variableCostItems';
             const container = document.getElementById(containerId);
             container.innerHTML = '';
-            if (data[currentMonthKey] && data[currentMonthKey].budget[type]) {
+            if (data[currentMonthKey] && data[currentMonthKey].budget && data[currentMonthKey].budget[type]) {
                 data[currentMonthKey].budget[type].forEach((item, index) => {
                     container.innerHTML += `<div class="editable-item card"><input type="text" value="${item.name}" onchange="updateBudgetItem('${type}', ${index}, 'name', this.value)"><input type="number" value="${item.amount}" onchange="updateBudgetItem('${type}', ${index}, 'amount', this.value)"><button class="delete-btn" onclick="deleteBudgetItem('${type}', ${index})">削除</button></div>`;
                 });
             }
         });
     }
+
     function updateExpenseList() {
         const list = document.getElementById('expenseList');
         list.innerHTML = '';
+        if(!data[currentMonthKey] || !data[currentMonthKey].expenses) return;
         data[currentMonthKey].expenses.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(ex => {
             const originalIndex = data[currentMonthKey].expenses.indexOf(ex);
             const date = new Date(ex.date);
             list.innerHTML += `<div class="expense-item"><div><strong>${date.getUTCDate()}日</strong> - ${ex.category} <small>${ex.memo||''}</small></div><div><strong>¥${ex.amount.toLocaleString()}</strong><button class="delete-btn" onclick="deleteExpense(${originalIndex})">×</button></div></div>`;
         });
     }
+
     function updateHeader() {
         document.getElementById('currentMonth').textContent = `${getMonthRange(currentMonthKey).start.getFullYear()}年 ${getMonthRange(currentMonthKey).start.getMonth() + 1}月`;
     }
+
     function showSyncStatus(type, message) {
         const statusDiv = document.getElementById('syncStatus');
         statusDiv.className = `sync-status ${type}`;
@@ -425,7 +471,9 @@
         setTimeout(() => statusDiv.classList.remove('show'), 2000);
     }
     
-    // 5. ユーザー操作とイベント
+    // ==================================
+    // 6. ユーザー操作とイベント
+    // ==================================
     function changeMonth(diff) {
         const [year, month] = currentMonthKey.split('-').map(Number);
         const newDate = new Date(year, month - 1 + diff, getMonthStartDay());
@@ -492,7 +540,9 @@
         if (confirm('この支出を削除しますか？')) { data[currentMonthKey].expenses.splice(index, 1); syncToFirestore(); }
     }
 
-    // 6. 新機能：カレンダー
+    // ==================================
+    // 7. 新機能：カレンダー
+    // ==================================
     function toggleCalendar() {
         const popup = document.getElementById('calendarPopup');
         const isVisible = popup.classList.toggle('show');
@@ -531,7 +581,9 @@
         toggleCalendar();
     }
 
-    // 7. 新機能：設定
+    // ==================================
+    // 8. 新機能：設定
+    // ==================================
     function updateSettingsDisplay() {
         const startDay = getMonthStartDay();
         document.getElementById('currentStartDayLabel').textContent = startDay;
@@ -563,7 +615,9 @@
         if (confirm('本当にすべてのデータを削除しますか？元に戻せません。')) { data = {}; syncToFirestore(); }
     }
 
-    // 8. 新機能：分析
+    // ==================================
+    // 9. 新機能：分析
+    // ==================================
     function renderComparisonChart() {
         if (!document.getElementById('analysisTab').classList.contains('active')) return;
         const ctx = document.getElementById('comparisonChart')?.getContext('2d');
@@ -610,7 +664,9 @@
         link.click();
     }
     
-    // 9. ヘルパー関数と初期化
+    // ==================================
+    // 10. ヘルパー関数と初期化
+    // ==================================
     function getMonthStartDay() { return parseInt(localStorage.getItem(LOCAL_STARTDAY_KEY) || "15"); }
     function getMonthKey(date) {
         const d = new Date(date);
@@ -637,7 +693,10 @@
     
     document.addEventListener('DOMContentLoaded', () => {
         showTab('summaryTab');
-        document.getElementById('expenseDate').value = new Date().toISOString().slice(0, 10);
+        const expenseDateInput = document.getElementById('expenseDate');
+        if(expenseDateInput) {
+            expenseDateInput.value = new Date().toISOString().slice(0, 10);
+        }
     });
     
 </script>
