@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>予算管理システム v3.4</title>
+    <title>予算管理システム v3.5</title>
     
-    <!-- Firebase SDK & Chart.js -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -85,7 +84,7 @@
 </head>
 <body>
     <header>
-        <h1>💰 予算管理システム v3.4</h1>
+        <h1>💰 予算管理システム v3.5</h1>
         <p>あなたの予算をスマートに管理しましょう</p>
     </header>
 
@@ -189,7 +188,14 @@
             document.getElementById('currentUser').textContent = user.email.split('@')[0];
             unsubscribe = db.collection("budgets").doc(userUid).onSnapshot(doc => {
                 data = doc.exists ? doc.data() : {};
-                if (!doc.exists) initializeMonth(getMonthKey(new Date()));
+                if (!doc.exists) {
+                    initializeMonth(getMonthKey(new Date()));
+                } else {
+                    // 既存ユーザー向けに、各月のデータ構造をチェック・補完する
+                    Object.keys(data).forEach(key => {
+                        initializeMonth(key);
+                    });
+                }
                 currentMonthKey = localStorage.getItem(LOCAL_MONTH_KEY) || getMonthKey(new Date());
                 fullUpdateUI();
             }, error => console.error("リスナーエラー:", error));
@@ -228,6 +234,7 @@
     // 3. データ操作と同期
     // ==================================
     function initializeMonth(key) {
+        let needsUpdate = false;
         if (!data[key]) {
             data[key] = {
                 income: [{ name: "アルバイト", amount: 120000 }],
@@ -242,9 +249,19 @@
                 },
                 expenses: []
             };
-            syncToFirestore();
-        } else if (!data[key].budget.savings) { // 後から追加した人向けの互換性維持
-            data[key].budget.savings = [];
+            needsUpdate = true;
+        } else {
+            // 既存データにsavingsカテゴリがなければ追加（後方互換性のため）
+            if (!data[key].budget.savings) {
+                data[key].budget.savings = [
+                    { name: "積立NISA", amount: 33000 },
+                    { name: "海外旅行", amount: 10000 },
+                    { name: "カメラ積立", amount: 5000 }
+                ];
+                needsUpdate = true;
+            }
+        }
+        if (needsUpdate) {
             syncToFirestore();
         }
     }
@@ -406,7 +423,9 @@
         setTimeout(() => statusDiv.classList.remove('show'), 2000);
     }
     
+    // ==================================
     // 5. ユーザー操作とイベント
+    // ==================================
     function changeMonth(diff) {
         const [year, month] = currentMonthKey.split('-').map(Number);
         const newDate = new Date(year, month - 1 + diff, getMonthStartDay());
@@ -473,7 +492,9 @@
         if (confirm('この支出を削除しますか？')) { data[currentMonthKey].expenses.splice(index, 1); syncToFirestore(); }
     }
 
+    // ==================================
     // 6. 新機能：カレンダー
+    // ==================================
     function toggleCalendar() {
         const popup = document.getElementById('calendarPopup');
         const isVisible = popup.classList.toggle('show');
@@ -512,7 +533,9 @@
         toggleCalendar();
     }
 
+    // ==================================
     // 7. 新機能：設定
+    // ==================================
     function updateSettingsDisplay() {
         const startDay = getMonthStartDay();
         document.getElementById('currentStartDayLabel').textContent = startDay;
@@ -544,7 +567,9 @@
         if (confirm('本当にすべてのデータを削除しますか？元に戻せません。')) { data = {}; syncToFirestore(); }
     }
 
+    // ==================================
     // 8. 新機能：分析
+    // ==================================
     function renderComparisonChart() {
         if (!document.getElementById('analysisTab').classList.contains('active')) return;
         const ctx = document.getElementById('comparisonChart')?.getContext('2d');
@@ -591,7 +616,9 @@
         link.click();
     }
     
+    // ==================================
     // 9. ヘルパー関数と初期化
+    // ==================================
     function getMonthStartDay() { return parseInt(localStorage.getItem(LOCAL_STARTDAY_KEY) || "15"); }
     function getMonthKey(date) {
         const d = new Date(date);
